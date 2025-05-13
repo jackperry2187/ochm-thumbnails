@@ -241,7 +241,7 @@ export default function HomePage() {
 
         {/* Middle Column: Canvas & Download */}
         <div className="flex flex-col items-center space-y-4">
-          <h1 className="text-center text-2xl font-bold">MTG Thumbnail Creator</h1>
+          <h1 className="text-center text-2xl font-bold">OCHM Thumbnail Creator</h1>
           <div
             id="canvas-container-wrapper"
             className="aspect-video w-full border bg-gray-100 dark:bg-gray-800"
