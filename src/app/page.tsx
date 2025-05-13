@@ -207,13 +207,13 @@ export default function HomePage() {
 
   return (
     <>
-      <main className="grid min-h-screen w-full grid-cols-1 gap-x-4 gap-y-8 p-4 md:grid-cols-[minmax(280px,1fr)_minmax(auto,2fr)_minmax(280px,1fr)] lg:gap-x-8">
+      <main className="grid min-h-screen w-full grid-cols-1 gap-x-4 gap-y-8 p-4 md:grid-cols-[minmax(280px,1fr)_minmax(auto,2fr)_minmax(280px,1fr)] lg:gap-x-8 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 text-slate-50">
         {/* Left Column: Inputs - Centered */}
-        <div className="flex flex-col items-center justify-self-center space-y-4 pt-4 md:pt-8">
+        <div className="flex flex-col items-center justify-self-center space-y-4 pt-4 md:pt-8 bg-slate-800/50 max-h-[80vh] backdrop-blur-sm p-6 rounded-xl shadow-2xl border-2 border-indigo-400/30">
           <div className="w-full max-w-xs space-y-4">
-            <h2 className="text-center text-xl font-semibold">Left Side</h2>
+            <h2 className="text-center text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-l from-purple-400 via-pink-400 to-orange-400 border-b border-indigo-400/30 pb-3">Left Side</h2>
             <div className="space-y-2">
-              <Label htmlFor="left-deck">Left Deck Name</Label>
+              <Label htmlFor="left-deck" className='text-indigo-200'>Left Deck Name</Label>
               <DeckAutocompleteCombobox
                 value={leftDeckName}
                 onValueChange={setLeftDeckName}
@@ -221,7 +221,7 @@ export default function HomePage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="top-left-card">Top Left Card</Label>
+              <Label htmlFor="top-left-card" className='text-indigo-200'>Top Left Card</Label>
               <AutocompleteCombobox
                 value={cardStates.topLeft.name}
                 onValueChange={(name) => handleCardSelection('topLeft', name)}
@@ -229,7 +229,7 @@ export default function HomePage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="bottom-left-card">Bottom Left Card</Label>
+              <Label htmlFor="bottom-left-card" className='text-indigo-200'>Bottom Left Card</Label>
               <AutocompleteCombobox
                 value={cardStates.bottomLeft.name}
                 onValueChange={(name) => handleCardSelection('bottomLeft', name)}
@@ -240,11 +240,11 @@ export default function HomePage() {
         </div>
 
         {/* Middle Column: Canvas & Download */}
-        <div className="flex flex-col items-center space-y-4">
-          <h1 className="text-center text-2xl font-bold">OCHM Thumbnail Creator</h1>
+        <div className="flex flex-col items-center space-y-6">
+          <h1 className="text-center text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-orange-400 pt-4 md:pt-0">OCHM Thumbnail Creator</h1>
           <div
             id="canvas-container-wrapper"
-            className="aspect-video w-full border bg-gray-100 dark:bg-gray-800"
+            className="aspect-video rounded-lg overflow-hidden shadow-2xl border-2 border-slate-700 hover:border-indigo-500 transition-all duration-300"
           >
             <ThumbnailCanvas 
               ref={thumbnailCanvasRef}
@@ -256,15 +256,15 @@ export default function HomePage() {
               bottomRightArtUrl={cardStates.bottomRight.artUrl}
             />
           </div>
-          <Button onClick={handleDownload} className='w-full'>Download Thumbnail</Button>
+          <Button onClick={handleDownload} className='w-full bg-gradient-to-r from-pink-400 via-purple-400 to-orange-400 text-indigo-700 hover:text-indigo-900 hover:from-pink-500 hover:via-purple-500 hover:to-orange-500 text-lg font-semibold shadow-md hover:shadow-lg transition-all duration-150 transform hover:scale-105'>Download Thumbnail</Button>
         </div>
 
         {/* Right Column: Inputs - Centered */}
-        <div className="flex flex-col items-center justify-self-center space-y-4 pt-4 md:pt-8">
+        <div className="flex flex-col items-center justify-self-center space-y-4 pt-4 md:pt-8 bg-slate-800/50 max-h-[80vh] backdrop-blur-sm p-6 rounded-xl shadow-2xl border-2 border-indigo-400/30">
           <div className="w-full max-w-xs space-y-4">
-            <h2 className="text-center text-xl font-semibold">Right Side</h2>
+            <h2 className="text-center text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-l from-purple-400 via-pink-400 to-orange-400 border-b border-indigo-400/30 pb-3">Right Side</h2>
             <div className="space-y-2">
-              <Label htmlFor="right-deck">Right Deck Name</Label>
+              <Label htmlFor="right-deck" className="text-indigo-200">Right Deck Name</Label>
               <DeckAutocompleteCombobox
                 value={rightDeckName}
                 onValueChange={setRightDeckName}
@@ -272,7 +272,7 @@ export default function HomePage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="top-right-card">Top Right Card</Label>
+              <Label htmlFor="top-right-card" className="text-indigo-200">Top Right Card</Label>
               <AutocompleteCombobox
                 value={cardStates.topRight.name}
                 onValueChange={(name) => handleCardSelection('topRight', name)}
@@ -280,7 +280,7 @@ export default function HomePage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="bottom-right-card">Bottom Right Card</Label>
+              <Label htmlFor="bottom-right-card" className="text-indigo-200">Bottom Right Card</Label>
               <AutocompleteCombobox
                 value={cardStates.bottomRight.name}
                 onValueChange={(name) => handleCardSelection('bottomRight', name)}
@@ -293,10 +293,10 @@ export default function HomePage() {
 
       {/* Art Selection Dialog */}
       <Dialog open={isArtDialogOpen} onOpenChange={handleDialogClose}>
-        <DialogOverlay className="min-h-[50vh] max-h-[70vh] justify-self-center place-self-center z-50 grid w-full gap-4 border-8 bg-background/90 p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg sm:max-w-[80vw] md:max-w-[60vw] lg:max-w-[50vw] xl:max-w-[40vw]">
+        <DialogOverlay className="min-h-[50vh] max-h-[70vh] justify-self-center place-self-center z-50 grid w-full gap-4 p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg sm:max-w-[80vw] md:max-w-[60vw] lg:max-w-[50vw] xl:max-w-[40vw] border-8 border-slate-700 bg-slate-800/95">
           <DialogHeader className='place-self-center'>
-            <DialogTitle className='text-center'>Select Art for: {selectedCardNameForArt}</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className='text-center text-xl font-semibold text-indigo-300'>Select Art for: {selectedCardNameForArt}</DialogTitle>
+            <DialogDescription className="text-slate-400">
               Click an image to select it for the thumbnail.
               {(cardArtsQuery.isLoading || artUsageQuery.isLoading) && " Loading available arts..."}
               {(cardArtsQuery.isError || artUsageQuery.isError) && " Error loading arts."}
@@ -307,28 +307,28 @@ export default function HomePage() {
               <button
                 key={art.artUrl} 
                 onClick={() => handleArtSelectionFromDialog(art)}
-                className="w-32 flex-auto relative rounded-md border-2 border-transparent transition-all hover:border-primary focus:border-primary focus:outline-none group"
+                className="w-36 h-auto flex-grow-0 flex-shrink-0 relative rounded-md border-2 border-slate-700 hover:border-indigo-500 focus:border-indigo-500 focus:outline-none group transition-all duration-150 transform hover:scale-105 shadow-md hover:shadow-lg"
               >
-                <Image width={512} height={512} src={art.artUrl} alt={`Art for ${selectedCardNameForArt} (Set: ${art.set})`} className="w-full h-full rounded-sm" /> 
-                <div className="absolute bottom-0 left-0 right-0 bg-black/70 px-1.5 py-0.5 text-center text-xs font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100">
+                <Image width={512} height={512} src={art.artUrl} alt={`Art for ${selectedCardNameForArt} (Set: ${art.set})`} className="w-full h-full object-cover rounded-sm" /> 
+                <div className="absolute bottom-0 left-0 right-0 bg-black/80 px-1.5 py-0.5 text-center text-xs font-medium text-slate-100 opacity-0 transition-opacity group-hover:opacity-100 duration-150">
                   Set: {art.set}
                 </div>
                 {artUsageMap[art.artUrl] && (
-                  <div className="absolute top-0 left-0 right-0 bg-black/70 px-1.5 py-0.5 text-center text-xs font-semibold text-red-400 opacity-0 transition-opacity group-hover:opacity-100">
+                  <div className="absolute top-0 left-0 right-0 bg-red-700/90 px-1.5 py-0.5 text-center text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100 duration-150">
                     Last Used: {format(new Date(artUsageMap[art.artUrl]!), 'P')}
                   </div>
                 )}
               </button>
             ))}
             {!cardArtsQuery.isLoading && !artUsageQuery.isLoading && artUrlsForSelection.length === 0 && (
-              <p className="col-span-full py-4 text-center text-muted-foreground">
+              <p className="col-span-full py-4 text-center text-slate-400">
                 No art versions found for this card.
               </p>
             )}
           </div>
           <DialogFooter className='justify-self-end place-self-end'>
             <DialogClose asChild>
-              <Button variant="secondary">Cancel</Button>
+              <Button variant="outline" className='border-indigo-500 hover:text-indigo-400 bg-indigo-500/10 text-indigo-300'>Cancel</Button>
             </DialogClose>
           </DialogFooter>
         </DialogOverlay>

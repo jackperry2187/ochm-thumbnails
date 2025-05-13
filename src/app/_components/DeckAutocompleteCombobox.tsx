@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { ChevronsUpDown } from 'lucide-react';
 import { format } from 'date-fns';
-
+import { cn } from '~/lib/utils';
 import { Button } from '~/components/ui/button';
 import {
   Command,
@@ -70,7 +70,9 @@ export function DeckAutocompleteCombobox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between"
+          className={cn(
+            "w-full justify-between"
+          )}
           disabled={disabled}
           onClick={() => {
             // When opening, if there's a value, populate search to show it / similar items
@@ -78,8 +80,12 @@ export function DeckAutocompleteCombobox({
             setOpen(!open);
           }}
         >
-          {value ? value : placeholder}
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          {value ? (
+            <span className="truncate text-slate-50">{value}</span>
+          ) : (
+            <span className="text-slate-400">{placeholder}</span>
+          )}
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50 text-slate-400" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
