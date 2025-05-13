@@ -1,0 +1,28 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model CardArtUsage {
+  id               String   @id @default(cuid())
+  scryfallCardId   String // Scryfall's card object ID
+  scryfallArtUrl   String   @unique // URL of the specific art crop
+  lastUsedAt       DateTime @updatedAt
+  createdAt        DateTime @default(now())
+
+  @@index([scryfallCardId])
+}
+
+model Deck {
+  id         String   @id @default(cuid())
+  name       String   @unique
+  lastUsedAt DateTime @updatedAt
+  createdAt  DateTime @default(now())
+}
