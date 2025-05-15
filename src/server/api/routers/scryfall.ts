@@ -3,6 +3,26 @@ import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 
 const SCRYFALL_API_BASE = "https://api.scryfall.com";
+const USER_AGENT = "OCHMThumbnailsApp/1.0"; // Define your app's User-Agent
+
+// Helper function to introduce a delay
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Wrapper for fetch calls to Scryfall API
+async function fetchScryfall(path: string, options?: RequestInit) {
+  await delay(100); // Introduce a 100ms delay
+
+  const headers = {
+    "User-Agent": USER_AGENT,
+    "Accept": "application/json, */*;q=0.8", // Standard Accept header
+    ...(options?.headers ?? {}),
+  };
+
+  return fetch(`${SCRYFALL_API_BASE}${path}`, {
+    ...options,
+    headers,
+  });
+}
 
 interface ScryfallAutocompleteResponse {
   object: "catalog";
@@ -55,10 +75,8 @@ export const scryfallRouter = createTRPCRouter({
         return [];
       }
       try {
-        const response = await fetch(
-          `${SCRYFALL_API_BASE}/cards/autocomplete?q=${encodeURIComponent(
-            input.query
-          )}`
+        const response = await fetchScryfall(
+          `/cards/autocomplete?q=${encodeURIComponent(input.query)}`
         );
         if (!response.ok) {
           console.error(
@@ -94,9 +112,9 @@ export const scryfallRouter = createTRPCRouter({
         return [];
       }
       try {
-        const response = await fetch(
-          `${SCRYFALL_API_BASE}/cards/search?q=${encodeURIComponent(
-            `!"${input.cardName}"`
+        const response = await fetchScryfall(
+          `/cards/search?q=${encodeURIComponent(
+            `!\"${input.cardName}\"`
           )}&unique=prints&include_variations=true&include_extras=true`
         );
 
