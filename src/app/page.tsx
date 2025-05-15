@@ -35,6 +35,7 @@ interface SelectedArtType {
   artUrl: string;
   set: string;
   scryfallPrintId: string;
+  artist?: string;
 }
 
 // Matches the output of api.art.getArtUsage
@@ -207,88 +208,100 @@ export default function HomePage() {
 
   return (
     <>
-      <main className="grid min-h-screen w-full grid-cols-1 gap-x-4 gap-y-8 p-4 md:grid-cols-[minmax(280px,1fr)_minmax(auto,2fr)_minmax(280px,1fr)] lg:gap-x-8 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 text-slate-50">
-        {/* Left Column: Inputs - Centered */}
-        <div className="flex flex-col items-center justify-self-center space-y-4 pt-4 md:pt-8 bg-slate-800/50 max-h-[80vh] backdrop-blur-sm p-6 rounded-xl shadow-2xl border-2 border-indigo-400/30">
-          <div className="w-full max-w-xs space-y-4">
-            <h2 className="text-center text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-l from-purple-400 via-pink-400 to-orange-400 border-b border-indigo-400/30 pb-3">Left Side</h2>
-            <div className="space-y-2">
-              <Label htmlFor="left-deck" className='text-indigo-200'>Left Deck Name</Label>
-              <DeckAutocompleteCombobox
-                value={leftDeckName}
-                onValueChange={setLeftDeckName}
-                placeholder="Enter Left Deck Name..."
+      <main className="flex flex-col min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 text-slate-50">
+        {/* Existing grid content wrapped in a div to allow footer below */}
+        <div className="flex-grow grid w-full grid-cols-1 gap-x-4 gap-y-8 p-4 md:grid-cols-[minmax(280px,1fr)_minmax(auto,2fr)_minmax(280px,1fr)] lg:gap-x-8">
+          {/* Left Column: Inputs - Centered */}
+          <div className="flex flex-col items-center justify-self-center space-y-4 pt-4 md:pt-8 bg-slate-800/50 max-h-[80vh] backdrop-blur-sm p-6 rounded-xl shadow-2xl border-2 border-indigo-400/30">
+            <div className="w-full max-w-xs space-y-4">
+              <h2 className="text-center text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-l from-purple-400 via-pink-400 to-orange-400 border-b border-indigo-400/30 pb-3">Left Side</h2>
+              <div className="space-y-2">
+                <Label htmlFor="left-deck" className='text-indigo-200'>Left Deck Name</Label>
+                <DeckAutocompleteCombobox
+                  value={leftDeckName}
+                  onValueChange={setLeftDeckName}
+                  placeholder="Enter Left Deck Name..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="top-left-card" className='text-indigo-200'>Top Left Card</Label>
+                <AutocompleteCombobox
+                  value={cardStates.topLeft.name}
+                  onValueChange={(name) => handleCardSelection('topLeft', name)}
+                  placeholder="Search Top Left Card..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="bottom-left-card" className='text-indigo-200'>Bottom Left Card</Label>
+                <AutocompleteCombobox
+                  value={cardStates.bottomLeft.name}
+                  onValueChange={(name) => handleCardSelection('bottomLeft', name)}
+                  placeholder="Search Bottom Left Card..."
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Middle Column: Canvas & Download */}
+          <div className="flex flex-col items-center space-y-6">
+            <h1 className="text-center text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-orange-400 pt-4 md:pt-0">OCHM Thumbnail Creator</h1>
+            <div
+              id="canvas-container-wrapper"
+              className="aspect-video rounded-lg overflow-hidden shadow-2xl border-2 border-slate-700 hover:border-indigo-500 transition-all duration-300"
+            >
+              <ThumbnailCanvas 
+                ref={thumbnailCanvasRef}
+                leftDeckName={leftDeckName}
+                rightDeckName={rightDeckName}
+                topLeftArtUrl={cardStates.topLeft.artUrl}
+                bottomLeftArtUrl={cardStates.bottomLeft.artUrl}
+                topRightArtUrl={cardStates.topRight.artUrl}
+                bottomRightArtUrl={cardStates.bottomRight.artUrl}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="top-left-card" className='text-indigo-200'>Top Left Card</Label>
-              <AutocompleteCombobox
-                value={cardStates.topLeft.name}
-                onValueChange={(name) => handleCardSelection('topLeft', name)}
-                placeholder="Search Top Left Card..."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="bottom-left-card" className='text-indigo-200'>Bottom Left Card</Label>
-              <AutocompleteCombobox
-                value={cardStates.bottomLeft.name}
-                onValueChange={(name) => handleCardSelection('bottomLeft', name)}
-                placeholder="Search Bottom Left Card..."
-              />
+            <Button onClick={handleDownload} className='w-full bg-gradient-to-r from-pink-400 via-purple-400 to-orange-400 text-indigo-700 hover:text-indigo-900 hover:from-pink-500 hover:via-purple-500 hover:to-orange-500 text-lg font-semibold shadow-md hover:shadow-lg transition-all duration-150 transform hover:scale-105'>Download Thumbnail</Button>
+          </div>
+
+          {/* Right Column: Inputs - Centered */}
+          <div className="flex flex-col items-center justify-self-center space-y-4 pt-4 md:pt-8 bg-slate-800/50 max-h-[80vh] backdrop-blur-sm p-6 rounded-xl shadow-2xl border-2 border-indigo-400/30">
+            <div className="w-full max-w-xs space-y-4">
+              <h2 className="text-center text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-l from-purple-400 via-pink-400 to-orange-400 border-b border-indigo-400/30 pb-3">Right Side</h2>
+              <div className="space-y-2">
+                <Label htmlFor="right-deck" className="text-indigo-200">Right Deck Name</Label>
+                <DeckAutocompleteCombobox
+                  value={rightDeckName}
+                  onValueChange={setRightDeckName}
+                  placeholder="Enter Right Deck Name..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="top-right-card" className="text-indigo-200">Top Right Card</Label>
+                <AutocompleteCombobox
+                  value={cardStates.topRight.name}
+                  onValueChange={(name) => handleCardSelection('topRight', name)}
+                  placeholder="Search Top Right Card..."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="bottom-right-card" className="text-indigo-200">Bottom Right Card</Label>
+                <AutocompleteCombobox
+                  value={cardStates.bottomRight.name}
+                  onValueChange={(name) => handleCardSelection('bottomRight', name)}
+                  placeholder="Search Bottom Right Card..."
+                />
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Middle Column: Canvas & Download */}
-        <div className="flex flex-col items-center space-y-6">
-          <h1 className="text-center text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-orange-400 pt-4 md:pt-0">OCHM Thumbnail Creator</h1>
-          <div
-            id="canvas-container-wrapper"
-            className="aspect-video rounded-lg overflow-hidden shadow-2xl border-2 border-slate-700 hover:border-indigo-500 transition-all duration-300"
-          >
-            <ThumbnailCanvas 
-              ref={thumbnailCanvasRef}
-              leftDeckName={leftDeckName}
-              rightDeckName={rightDeckName}
-              topLeftArtUrl={cardStates.topLeft.artUrl}
-              bottomLeftArtUrl={cardStates.bottomLeft.artUrl}
-              topRightArtUrl={cardStates.topRight.artUrl}
-              bottomRightArtUrl={cardStates.bottomRight.artUrl}
-            />
-          </div>
-          <Button onClick={handleDownload} className='w-full bg-gradient-to-r from-pink-400 via-purple-400 to-orange-400 text-indigo-700 hover:text-indigo-900 hover:from-pink-500 hover:via-purple-500 hover:to-orange-500 text-lg font-semibold shadow-md hover:shadow-lg transition-all duration-150 transform hover:scale-105'>Download Thumbnail</Button>
-        </div>
-
-        {/* Right Column: Inputs - Centered */}
-        <div className="flex flex-col items-center justify-self-center space-y-4 pt-4 md:pt-8 bg-slate-800/50 max-h-[80vh] backdrop-blur-sm p-6 rounded-xl shadow-2xl border-2 border-indigo-400/30">
-          <div className="w-full max-w-xs space-y-4">
-            <h2 className="text-center text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-l from-purple-400 via-pink-400 to-orange-400 border-b border-indigo-400/30 pb-3">Right Side</h2>
-            <div className="space-y-2">
-              <Label htmlFor="right-deck" className="text-indigo-200">Right Deck Name</Label>
-              <DeckAutocompleteCombobox
-                value={rightDeckName}
-                onValueChange={setRightDeckName}
-                placeholder="Enter Right Deck Name..."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="top-right-card" className="text-indigo-200">Top Right Card</Label>
-              <AutocompleteCombobox
-                value={cardStates.topRight.name}
-                onValueChange={(name) => handleCardSelection('topRight', name)}
-                placeholder="Search Top Right Card..."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="bottom-right-card" className="text-indigo-200">Bottom Right Card</Label>
-              <AutocompleteCombobox
-                value={cardStates.bottomRight.name}
-                onValueChange={(name) => handleCardSelection('bottomRight', name)}
-                placeholder="Search Bottom Right Card..."
-              />
-            </div>
-          </div>
-        </div>
+        {/* Footer */}
+        <footer className="w-full p-4 text-center text-xs text-slate-400 bg-slate-900/50 border-t border-slate-700/50">
+          <p>
+            Portions of OCHM Thumbnail Creator are unofficial Fan Content permitted under the Wizards of the Coast Fan Content Policy. 
+            The literal and graphical information presented on this site about Magic: The Gathering, including card images and mana symbols, 
+            is copyright Wizards of the Coast, LLC. OCHM Thumbnail Creator is not produced by or endorsed by Wizards of the Coast.
+          </p>
+        </footer>
       </main>
 
       {/* Art Selection Dialog */}
@@ -312,6 +325,7 @@ export default function HomePage() {
                 <Image width={512} height={512} src={art.artUrl} alt={`Art for ${selectedCardNameForArt} (Set: ${art.set})`} className="w-full h-full object-cover rounded-sm" /> 
                 <div className="absolute bottom-0 left-0 right-0 bg-black/80 px-1.5 py-0.5 text-center text-xs font-medium text-slate-100 opacity-0 transition-opacity group-hover:opacity-100 duration-150">
                   Set: {art.set}
+                  {art.artist && <div className="truncate">Artist: {art.artist}</div>}
                 </div>
                 {artUsageMap[art.artUrl] && (
                   <div className="absolute top-0 left-0 right-0 bg-red-700/90 px-1.5 py-0.5 text-center text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100 duration-150">

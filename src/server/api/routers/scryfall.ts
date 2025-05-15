@@ -51,9 +51,11 @@ interface ScryfallCard {
   id: string;
   name: string;
   set: string;
+  artist?: string;
   image_uris?: ScryfallCardImageUris;
   card_faces?: Array<{
     name?: string;
+    artist?: string;
     image_uris?: ScryfallCardImageUris;
   }>;
   // ... other card properties
@@ -105,7 +107,8 @@ export const scryfallRouter = createTRPCRouter({
     .output(z.array(z.object({ 
       artUrl: z.string().url(), 
       set: z.string(),
-      scryfallPrintId: z.string()
+      scryfallPrintId: z.string(),
+      artist: z.string().optional(),
     })))
     .query(async ({ input }) => {
       if (!input.cardName) {
@@ -115,7 +118,7 @@ export const scryfallRouter = createTRPCRouter({
         const response = await fetchScryfall(
           `/cards/search?q=${encodeURIComponent(
             `!\"${input.cardName}\"`
-          )}&unique=prints&include_variations=true&include_extras=true`
+          )}&unique=art&include_variations=true&include_extras=true`
         );
 
         if (!response.ok) {
@@ -134,7 +137,7 @@ export const scryfallRouter = createTRPCRouter({
           return [];
         }
 
-        const collectedArts: Array<{ artUrl: string; set: string; scryfallPrintId: string }> = [];
+        const collectedArts: Array<{ artUrl: string; set: string; scryfallPrintId: string; artist?: string }> = [];
         const seenArtUrls = new Set<string>();
 
         data.data.forEach((card) => {
@@ -144,6 +147,7 @@ export const scryfallRouter = createTRPCRouter({
                 artUrl: card.image_uris.art_crop,
                 set: card.set.toUpperCase(),
                 scryfallPrintId: card.id,
+                artist: card.artist,
               });
               seenArtUrls.add(card.image_uris.art_crop);
             }
@@ -156,6 +160,7 @@ export const scryfallRouter = createTRPCRouter({
                     artUrl: face.image_uris.art_crop,
                     set: card.set.toUpperCase(),
                     scryfallPrintId: card.id,
+                    artist: face.artist ?? card.artist,
                   });
                   seenArtUrls.add(face.image_uris.art_crop);
                 }
