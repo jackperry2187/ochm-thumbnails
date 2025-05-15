@@ -1,0 +1,16 @@
+{
+  "name": "OCHM Thumbnail Creator",
+  "short_name": "OCHM Thumbnails",
+  "description": "Quickly create Magic: The Gathering thumbnails for Ocean County Hive Mind (OCHM) YouTube videos.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1e293b",
+  "theme_color": "#6A0DAD",
+  "icons": [
+    {
+      "src": "/logo_512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+} 

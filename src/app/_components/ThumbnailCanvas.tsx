@@ -14,7 +14,11 @@ interface ThumbnailCanvasProps {
   bottomRightArtUrl: string | null;
   canvasWidth?: number;
   canvasHeight?: number;
-  logoUrl?: string; // Added logoUrl prop
+  logoUrl?: string; // Existing default logo prop
+  customLogoUrl?: string | null; // New: For custom uploaded logo
+  logoX?: number; // New: X position for custom logo
+  logoY?: number; // New: Y position for custom logo
+  logoYOffset?: number; // New: Y offset for custom logo
 }
 
 export interface ThumbnailCanvasHandle {
@@ -31,9 +35,12 @@ const TEXT_FONT_FAMILY = 'Calibri, sans-serif'; // Bold, impactful font
 const TEXT_FONT_SIZE = 48; // Reduced font size for better wrapping
 
 // Define fixed logo dimensions on the canvas
-// const LOGO_DISPLAY_WIDTH = 180; // Adjust as needed - Will be dynamic now
-// const LOGO_DISPLAY_HEIGHT = 90; // Adjust as needed to maintain aspect ratio - Will be dynamic now
-const TARGET_LOGO_HEIGHT = 294; // Target height for the logo, e.g. 60px
+const TARGET_LOGO_HEIGHT = 294; // Target height for the logo
+
+interface LogoDetails {
+  image: HTMLImageElement;
+  calculatedWidth: number;
+}
 
 const ThumbnailCanvas = forwardRef<ThumbnailCanvasHandle, ThumbnailCanvasProps>((
   {
@@ -46,34 +53,63 @@ const ThumbnailCanvas = forwardRef<ThumbnailCanvasHandle, ThumbnailCanvasProps>(
     canvasWidth = CANVAS_WIDTH_DEFAULT,
     canvasHeight = CANVAS_HEIGHT_DEFAULT,
     logoUrl = '/logo_512.png', // Default to the provided logo path
+    customLogoUrl, // New prop
+    logoX: customLogoXFromProp, // New prop, renamed for clarity
+    logoY: customLogoYFromProp, // New prop, renamed for clarity
+    logoYOffset: customLogoYOffsetFromProp, // New prop, renamed for clarity
   },
   ref
 ) => {
   const stageRef = useRef<Konva.Stage>(null);
-  const [logoImage, setLogoImage] = useState<HTMLImageElement | null>(null);
-  const [calculatedLogoWidth, setCalculatedLogoWidth] = useState(TARGET_LOGO_HEIGHT); // Default to square for initial calc
+  
+  const [defaultLogoDetails, setDefaultLogoDetails] = useState<LogoDetails | null>(null);
+  const [customLogoDetails, setCustomLogoDetails] = useState<LogoDetails | null>(null);
 
-  // Load logo image
+  // Load default logo image
   useEffect(() => {
     if (logoUrl) {
       const img = new window.Image();
       img.src = logoUrl;
       img.crossOrigin = 'Anonymous';
       img.onload = () => {
+        let scaledWidth = TARGET_LOGO_HEIGHT; // Default to square if natural dims are 0
         if (img.naturalWidth && img.naturalHeight) {
           const aspectRatio = img.naturalWidth / img.naturalHeight;
-          setCalculatedLogoWidth(TARGET_LOGO_HEIGHT * aspectRatio);
-        } else {
-          setCalculatedLogoWidth(TARGET_LOGO_HEIGHT); // Fallback if natural dims are 0
+          scaledWidth = TARGET_LOGO_HEIGHT * aspectRatio;
         }
-        setLogoImage(img);
+        setDefaultLogoDetails({ image: img, calculatedWidth: scaledWidth });
       };
       img.onerror = () => {
-        console.error("Failed to load logo image:", logoUrl);
-        setLogoImage(null); // Clear if error
+        console.error("Failed to load default logo image:", logoUrl);
+        setDefaultLogoDetails(null);
       };
+    } else {
+      setDefaultLogoDetails(null);
     }
   }, [logoUrl]);
+
+  // Load custom logo image
+  useEffect(() => {
+    if (customLogoUrl) {
+      const img = new window.Image();
+      img.src = customLogoUrl;
+      img.crossOrigin = 'Anonymous'; 
+      img.onload = () => {
+        let scaledWidth = TARGET_LOGO_HEIGHT;
+        if (img.naturalWidth && img.naturalHeight) {
+          const aspectRatio = img.naturalWidth / img.naturalHeight;
+          scaledWidth = TARGET_LOGO_HEIGHT * aspectRatio;
+        }
+        setCustomLogoDetails({ image: img, calculatedWidth: scaledWidth });
+      };
+      img.onerror = () => {
+        console.error("Failed to load custom logo image:", customLogoUrl);
+        setCustomLogoDetails(null);
+      };
+    } else {
+      setCustomLogoDetails(null);
+    }
+  }, [customLogoUrl]);
 
   // Dimensions for elements
   const middleX = canvasWidth / 2;
@@ -84,18 +120,40 @@ const ThumbnailCanvas = forwardRef<ThumbnailCanvasHandle, ThumbnailCanvasProps>(
   const quadrantWidth = canvasWidth / 2;
   const quadrantHeight = canvasHeight / 2;
 
-  // Logo position and dimensions (dynamic width based on aspect ratio)
-  const finalLogoHeight = TARGET_LOGO_HEIGHT;
-  const finalLogoWidth = calculatedLogoWidth;
-  const logoX = middleX - finalLogoWidth / 2;
-  const logoY_offset = 18;
-  const logoY = purpleBarY - PURPLE_BAR_HEIGHT / 2 + logoY_offset;
+  // Determine logo to display and its properties
+  const logoToDisplay = customLogoDetails ?? defaultLogoDetails;
+  const isCustomLogoDisplayed = !!customLogoDetails;
 
-  // Dynamic text width calculation based on logo position
+  // Default logo position calculations (used for text layout and default logo rendering)
+  const defaultLogoLayoutWidth = defaultLogoDetails?.calculatedWidth ?? TARGET_LOGO_HEIGHT; // Fallback for layout if default not loaded
+  const defaultLogoCenteredX = middleX - defaultLogoLayoutWidth / 2;
+  const logoYOffsetConstant = 18; // Original offset for default logo
+  const defaultLogoCenteredY = purpleBarY - PURPLE_BAR_HEIGHT / 2 + logoYOffsetConstant;
+
+  // Dynamic text width calculation based on default logo's centered position
   const deckNameTextPadding = 20;
-  const leftTextWidth = logoX - deckNameTextPadding * 2; // Max width for left text
-  const rightTextX = logoX + finalLogoWidth + deckNameTextPadding; // Start X for right text
-  const rightTextWidth = canvasWidth - rightTextX - deckNameTextPadding; // Max width for right text
+  const leftTextWidth = defaultLogoCenteredX - deckNameTextPadding * 2;
+  const rightTextX = defaultLogoCenteredX + defaultLogoLayoutWidth + deckNameTextPadding;
+  const rightTextWidth = canvasWidth - rightTextX - deckNameTextPadding;
+
+  // Determine final X and Y for the logo to be rendered
+  let finalLogoX: number;
+  let finalLogoY: number;
+
+  if (logoToDisplay) { // Check if there is any logo to display
+    if (isCustomLogoDisplayed) {
+      finalLogoX = customLogoXFromProp ?? (middleX - logoToDisplay.calculatedWidth / 2);
+      const baseY = customLogoYFromProp ?? defaultLogoCenteredY;
+      finalLogoY = baseY + (customLogoYOffsetFromProp ?? 0);
+    } else { // It's the default logo
+      finalLogoX = middleX - logoToDisplay.calculatedWidth / 2;
+      finalLogoY = defaultLogoCenteredY;
+    }
+  } else {
+    // Should not happen if logic is correct, but provide fallbacks
+    finalLogoX = middleX;
+    finalLogoY = middleY;
+  }
 
   useEffect(() => {
     // You can access the stage instance via stageRef.current here if needed
@@ -111,16 +169,16 @@ const ThumbnailCanvas = forwardRef<ThumbnailCanvasHandle, ThumbnailCanvasProps>(
       {/* Layer for Card Art - Using Group for each quadrant to handle positioning */}
       <Layer name="art-layer">
         <Group x={0} y={0} clip={{ x: 0, y: 0, width: quadrantWidth, height: quadrantHeight }}>
-          <QuadrantImage src={topLeftArtUrl} x={0} y={0} width={quadrantWidth} height={quadrantHeight} quadrantId="topLeft" />
+          <QuadrantImage src={topLeftArtUrl} width={quadrantWidth} height={quadrantHeight}/>
         </Group>
         <Group x={quadrantWidth} y={0} clip={{ x: 0, y: 0, width: quadrantWidth, height: quadrantHeight }}>
-          <QuadrantImage src={topRightArtUrl} x={0} y={0} width={quadrantWidth} height={quadrantHeight} quadrantId="topRight" />
+          <QuadrantImage src={topRightArtUrl} width={quadrantWidth} height={quadrantHeight}/>
         </Group>
         <Group x={0} y={quadrantHeight} clip={{ x: 0, y: 0, width: quadrantWidth, height: quadrantHeight }}>
-          <QuadrantImage src={bottomLeftArtUrl} x={0} y={0} width={quadrantWidth} height={quadrantHeight} quadrantId="bottomLeft" />
+          <QuadrantImage src={bottomLeftArtUrl} width={quadrantWidth} height={quadrantHeight}/>
         </Group>
         <Group x={quadrantWidth} y={quadrantHeight} clip={{ x: 0, y: 0, width: quadrantWidth, height: quadrantHeight }}>
-          <QuadrantImage src={bottomRightArtUrl} x={0} y={0} width={quadrantWidth} height={quadrantHeight} quadrantId="bottomRight" />
+          <QuadrantImage src={bottomRightArtUrl} width={quadrantWidth} height={quadrantHeight}/>
         </Group>
       </Layer>
 
@@ -156,15 +214,15 @@ const ThumbnailCanvas = forwardRef<ThumbnailCanvasHandle, ThumbnailCanvasProps>(
           listening={false}
         />
 
-        {/* Actual Logo Image */}
-        {logoImage && (
+        {/* Actual Logo Image: Conditional rendering based on custom or default logo */}
+        {logoToDisplay && (
           <KonvaImage
-            image={logoImage}
-            x={logoX}
-            y={logoY}
-            width={finalLogoWidth}
-            height={finalLogoHeight}
-            draggable={false} // Typically logo is not draggable
+            image={logoToDisplay.image}
+            x={finalLogoX}
+            y={finalLogoY}
+            width={logoToDisplay.calculatedWidth}
+            height={TARGET_LOGO_HEIGHT}
+            draggable={false}
             listening={false}
           />
         )}

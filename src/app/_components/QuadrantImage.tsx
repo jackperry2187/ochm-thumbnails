@@ -7,18 +7,14 @@ import { api } from '~/trpc/react'; // Import tRPC API hook
 
 interface QuadrantImageProps {
   src: string | null; // This will now be the original Scryfall URL
-  x: number;
-  y: number;
   width: number;
   height: number;
-  quadrantId: string;
 }
 
 const QuadrantImage: React.FC<QuadrantImageProps> = ({
   src: originalSrc,
   width,
   height,
-  // quadrantId,
 }) => {
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   const imageRef = useRef<Konva.Image>(null);
@@ -156,20 +152,20 @@ const QuadrantImage: React.FC<QuadrantImageProps> = ({
     setImgPos(newPos);
   };
 
-  if (!originalSrc || (!image && !isLoading) ) { // If no src, or (not loading AND no image yet)
-    return null; // Or a placeholder rect if desired, but null is fine if parent Group defines area
+  // Determine what to render
+  if (!originalSrc) {
+    return null; // No source URL provided
   }
 
-  if (isLoading && originalSrc) {
-    // Display a placeholder Rect while image is loading via proxy
+  if (isLoading) {
     return <Rect x={0} y={0} width={width} height={height} fill="#e0e0e0" listening={false} cornerRadius={4} />; 
   }
   
   if (!image && !isLoading) { // Should be covered by first condition, but as a fallback
       return null;
   }
-
-  // Only render KonvaImage if `image` (HTMLImageElement) is loaded and available
+  
+  // If image is loaded, render it
   if (image) {
     return (
       <KonvaImage
@@ -189,7 +185,7 @@ const QuadrantImage: React.FC<QuadrantImageProps> = ({
     );
   }
   
-  return null; // Fallback, should ideally be covered by loading/error states
+  return null; // Should be unreachable if logic above is complete, but acts as a final fallback
 };
 
 export default QuadrantImage; 

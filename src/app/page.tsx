@@ -18,6 +18,7 @@ import {
   DialogClose,
 } from '~/components/ui/dialog';
 import Image from 'next/image';
+import { Input } from '~/components/ui/input';
 
 // Define types for card slots for better type safety
 type CardSlot = 'topLeft' | 'bottomLeft' | 'topRight' | 'bottomRight';
@@ -62,6 +63,13 @@ export default function HomePage() {
   const [selectedCardNameForArt, setSelectedCardNameForArt] = useState<string>('');
   
   const [artUsageMap, setArtUsageMap] = useState<Record<string, Date | null>>({});
+
+  // State for custom logo
+  const [customLogoUrl, setCustomLogoUrl] = useState<string | null>(null);
+  const [showCustomLogoControls, setShowCustomLogoControls] = useState(false);
+  const [logoX, setLogoX] = useState<number | undefined>(undefined);
+  const [logoY, setLogoY] = useState<number | undefined>(undefined);
+  const [logoYOffset, setLogoYOffset] = useState<number>(18);
 
   const cardArtsQuery = api.scryfall.getCardArts.useQuery(
     { cardName: selectedCardNameForArt },
@@ -139,11 +147,11 @@ export default function HomePage() {
   }, [cardArtsQuery.isSuccess, cardArtsQuery.isError, cardArtsQuery.data, cardArtsQuery.error, selectedCardNameForArt, currentSlotForArtSelection, handleCardSelection]);
 
   const handleArtSelectionFromDialog = (selectedArt: SelectedArtType) => {
-    if (currentSlotForArtSelection && selectedCardNameForArt) {
+    if (currentSlotForArtSelection) {
       setCardStates((prev) => ({
         ...prev,
         [currentSlotForArtSelection]: {
-          name: selectedCardNameForArt, 
+          ...prev[currentSlotForArtSelection],
           artUrl: selectedArt.artUrl,
           scryfallCardId: selectedArt.scryfallPrintId, 
         },
@@ -206,6 +214,24 @@ export default function HomePage() {
     }
   };
 
+  const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCustomLogoUrl(reader.result as string);
+        setShowCustomLogoControls(true);
+        setLogoX(undefined);
+        setLogoY(undefined);
+        setLogoYOffset(18);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setCustomLogoUrl(null);
+      setShowCustomLogoControls(false);
+    }
+  };
+
   return (
     <>
       <main className="flex flex-col min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 text-slate-50">
@@ -239,6 +265,56 @@ export default function HomePage() {
                   placeholder="Search Bottom Left Card..."
                 />
               </div>
+
+              {/* Custom Logo Upload Section */}
+              <div className="space-y-2 border-t border-indigo-400/30 pt-4 mt-4">
+                <Label htmlFor="custom-logo-upload" className='text-indigo-200'>Custom Logo</Label>
+                <Input
+                  id="custom-logo-upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoUpload}
+                  className="w-full text-sm text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-pink-400/20 file:text-pink-300 hover:file:bg-pink-400/30 focus-visible:ring-1 focus-visible:ring-pink-500 focus-visible:ring-offset-0 focus-visible:ring-offset-slate-900"
+                />
+              </div>
+
+              {showCustomLogoControls && customLogoUrl && (
+                <>
+                  <div className="space-y-1">
+                    <Label htmlFor="logo-x" className='text-xs text-indigo-300'>Logo X</Label>
+                    <Input
+                      id="logo-x"
+                      type="number"
+                      value={logoX ?? ''}
+                      onChange={(e) => setLogoX(e.target.value === '' ? undefined : Number(e.target.value))}
+                      placeholder="Auto (center)"
+                      className="bg-slate-700/50 border-indigo-500/50 text-sm h-8"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="logo-y" className='text-xs text-indigo-300'>Logo Y</Label>
+                    <Input
+                      id="logo-y"
+                      type="number"
+                      value={logoY ?? ''}
+                      onChange={(e) => setLogoY(e.target.value === '' ? undefined : Number(e.target.value))}
+                      placeholder="Auto (align with bar)"
+                      className="bg-slate-700/50 border-indigo-500/50 text-sm h-8"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="logo-y-offset" className='text-xs text-indigo-300'>Logo Y Offset</Label>
+                    <Input
+                      id="logo-y-offset"
+                      type="number"
+                      value={logoYOffset}
+                      onChange={(e) => setLogoYOffset(Number(e.target.value))}
+                      placeholder="Y offset"
+                      className="bg-slate-700/50 border-indigo-500/50 text-sm h-8"
+                    />
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -257,6 +333,10 @@ export default function HomePage() {
                 bottomLeftArtUrl={cardStates.bottomLeft.artUrl}
                 topRightArtUrl={cardStates.topRight.artUrl}
                 bottomRightArtUrl={cardStates.bottomRight.artUrl}
+                customLogoUrl={customLogoUrl}
+                logoX={logoX}
+                logoY={logoY}
+                logoYOffset={logoYOffset}
               />
             </div>
             <Button onClick={handleDownload} className='w-full bg-gradient-to-r from-pink-400 via-purple-400 to-orange-400 text-indigo-700 hover:text-indigo-900 hover:from-pink-500 hover:via-purple-500 hover:to-orange-500 text-lg font-semibold shadow-md hover:shadow-lg transition-all duration-150 transform hover:scale-105'>Download Thumbnail</Button>
