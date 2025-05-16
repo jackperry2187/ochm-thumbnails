@@ -35,7 +35,9 @@ export const deckRouter = createTRPCRouter({
     }),
 
   saveOrUpdateDeckName: publicProcedure
-    .input(z.object({ name: z.string().min(1) }))
+    .input(z.object({ 
+      name: z.string().min(1).max(100)
+    }))
     .mutation(async ({ input, ctx }) => {
       try {
         const deck = await ctx.db.deck.upsert({

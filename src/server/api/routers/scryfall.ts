@@ -5,6 +5,17 @@ import { TRPCError } from "@trpc/server";
 const SCRYFALL_API_BASE = "https://api.scryfall.com";
 const USER_AGENT = "OCHMThumbnailsApp/1.0"; // Define your app's User-Agent
 
+// Allowed domains for the image proxy
+const ALLOWED_IMAGE_DOMAINS = [
+  "cards.scryfall.io", 
+  "c1.scryfall.com", // Older image domain, still sometimes seen
+  "svgs.scryfall.io"
+  // Add other Scryfall image subdomains if necessary
+];
+
+const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB limit for proxied images
+const FETCH_TIMEOUT_MS = 5000; // 5 seconds timeout for fetching image headers/data
+
 // Helper function to introduce a delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -179,20 +190,74 @@ export const scryfallRouter = createTRPCRouter({
     .input(z.object({ imageUrl: z.string().url() }))
     .query(async ({ input }) => {
       try {
-        const response = await fetch(input.imageUrl);
+        const url = new URL(input.imageUrl);
+        if (!ALLOWED_IMAGE_DOMAINS.includes(url.hostname)) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Image URL from disallowed domain.",
+          });
+        }
+
+        // Step 1: Fetch headers to check content length
+        const headController = new AbortController();
+        const headTimeoutId = setTimeout(() => headController.abort(), FETCH_TIMEOUT_MS);
+
+        const headResponse = await fetch(input.imageUrl, { signal: headController.signal, method: 'HEAD' });
+        clearTimeout(headTimeoutId);
+
+        if (!headResponse.ok) {
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: `Failed to fetch image headers: ${headResponse.statusText}`,
+          });
+        }
+
+        const contentLength = headResponse.headers.get('content-length');
+        if (contentLength && parseInt(contentLength, 10) > MAX_IMAGE_SIZE_BYTES) {
+          throw new TRPCError({
+            code: 'PAYLOAD_TOO_LARGE',
+            message: `Image exceeds maximum allowed size of ${MAX_IMAGE_SIZE_BYTES / (1024 * 1024)}MB.`,
+          });
+        }
+
+        // Step 2: Fetch the actual image data with timeout
+        const dataController = new AbortController();
+        const dataTimeoutId = setTimeout(() => dataController.abort(), FETCH_TIMEOUT_MS);
+        
+        const response = await fetch(input.imageUrl, { signal: dataController.signal });
+        clearTimeout(dataTimeoutId);
+
         if (!response.ok) {
           throw new TRPCError({
             code: 'INTERNAL_SERVER_ERROR',
             message: `Failed to fetch image from Scryfall: ${response.statusText}`,
           });
         }
+        
+        // Double check content length if the HEAD request didn't provide it (less common)
+        // This is a progressive download, so can be harder to limit strictly here if no Content-Length initially
+        // but Vercel memory/timeout will be the ultimate backstop.
+
         const imageBuffer = await response.arrayBuffer();
+        if (imageBuffer.byteLength > MAX_IMAGE_SIZE_BYTES) {
+             throw new TRPCError({
+                code: 'PAYLOAD_TOO_LARGE',
+                message: `Image payload exceeds maximum allowed size of ${MAX_IMAGE_SIZE_BYTES / (1024 * 1024)}MB during download.`,
+            });
+        }
+
         const imageBase64 = Buffer.from(imageBuffer).toString('base64');
         const contentType = response.headers.get('content-type') ?? 'image/jpeg';
         return `data:${contentType};base64,${imageBase64}`;
       } catch (error) {
-        console.error("Error proxying image:", error);
         if (error instanceof TRPCError) throw error;
+        if (error instanceof Error && error.name === 'AbortError') {
+            throw new TRPCError({
+                code: 'TIMEOUT',
+                message: 'Request to fetch image timed out.',
+            });
+        }
+        console.error("Error proxying image:", error);
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: 'Failed to proxy image',
