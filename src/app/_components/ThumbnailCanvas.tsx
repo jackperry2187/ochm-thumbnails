@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState, forwardRef, useImperativeHandle } f
 import { Stage, Layer, Rect, Line, Text as KonvaText, Image as KonvaImage, Group } from 'react-konva';
 import type Konva from 'konva'; // Import Konva namespace for types if needed, or direct class usage
 import QuadrantImage from './QuadrantImage'; // Import the new component
+import type { ThumbnailType } from '../page'; // Import ThumbnailType
 
 interface ThumbnailCanvasProps {
   leftDeckName: string;
@@ -19,6 +20,8 @@ interface ThumbnailCanvasProps {
   logoX?: number; // New: X position for custom logo
   logoY?: number; // New: Y position for custom logo
   logoYOffset?: number; // New: Y offset for custom logo
+  thumbnailType: ThumbnailType;
+  streamDate?: string;
 }
 
 export interface ThumbnailCanvasHandle {
@@ -57,6 +60,8 @@ const ThumbnailCanvas = forwardRef<ThumbnailCanvasHandle, ThumbnailCanvasProps>(
     logoX: customLogoXFromProp, // New prop, renamed for clarity
     logoY: customLogoYFromProp, // New prop, renamed for clarity
     logoYOffset: customLogoYOffsetFromProp, // New prop, renamed for clarity
+    thumbnailType,
+    streamDate,
   },
   ref
 ) => {
@@ -184,17 +189,32 @@ const ThumbnailCanvas = forwardRef<ThumbnailCanvasHandle, ThumbnailCanvasProps>(
 
       {/* Layer for Static Template Elements */}
       <Layer name="template-layer">
-        {/* Semi-transparent purple horizontal bar */}
-        <Rect
-          x={0}
-          y={purpleBarY}
-          width={canvasWidth}
-          height={PURPLE_BAR_HEIGHT}
-          fill={PURPLE_COLOR}
-          opacity={0.63} // Adjust opacity to match reference
-          listening={false}
-        />
+        {/* Semi-transparent purple horizontal bar (Video mode only) */}
+        {thumbnailType === "Video" && (
+          <Rect
+            x={0}
+            y={purpleBarY}
+            width={canvasWidth}
+            height={PURPLE_BAR_HEIGHT}
+            fill={PURPLE_COLOR}
+            opacity={0.63}
+            listening={false}
+          />
+        )}
         
+        {/* Vertical Purple Bar (Stream mode only) */}
+        {thumbnailType === "Stream" && logoToDisplay && (
+          <Rect
+            x={middleX - logoToDisplay.calculatedWidth / 2}
+            y={0}
+            width={logoToDisplay.calculatedWidth}
+            height={canvasHeight}
+            fill={PURPLE_COLOR}
+            opacity={0.63}
+            listening={false}
+          />
+        )}
+
         {/* Black outer border */}
         <Rect
           x={0}
@@ -230,42 +250,97 @@ const ThumbnailCanvas = forwardRef<ThumbnailCanvasHandle, ThumbnailCanvasProps>(
 
       {/* Layer for Deck Name Texts */}
       <Layer name="text-layer" listening={false}>
-        {/* Left Deck Name */}
-        <KonvaText
-          text={leftDeckName.toUpperCase()} // Match styling from reference if uppercased
-          x={deckNameTextPadding}
-          y={purpleBarY} // New y, verticalAlign will handle centering within the bar height
-          width={leftTextWidth}
-          height={PURPLE_BAR_HEIGHT} // Set height for verticalAlign
-          wrap="word" // Enable word wrapping
-          fontSize={TEXT_FONT_SIZE}
-          fontFamily={TEXT_FONT_FAMILY}
-          fontStyle="bold"
-          fill={TEXT_COLOR}
-          stroke={TEXT_STROKE_COLOR}
-          strokeWidth={2.3} // Slightly thicker stroke can look better
-          align="center"
-          verticalAlign="middle"
-          draggable={false} // Typically not draggable, but can be enabled
-        />
-        {/* Right Deck Name */}
-        <KonvaText
-          text={rightDeckName.toUpperCase()} // Match styling from reference if uppercased
-          x={rightTextX}
-          y={purpleBarY} // New y
-          width={rightTextWidth}
-          height={PURPLE_BAR_HEIGHT} // Set height for verticalAlign
-          wrap="word" // Enable word wrapping
-          fontSize={TEXT_FONT_SIZE}
-          fontFamily={TEXT_FONT_FAMILY}
-          fontStyle="bold"
-          fill={TEXT_COLOR}
-          stroke={TEXT_STROKE_COLOR}
-          strokeWidth={2.3}
-          align="center"
-          verticalAlign="middle"
-          draggable={false}
-        />
+        {/* Left Deck Name (Video Mode Only)*/}
+        {thumbnailType === "Video" && (
+          <KonvaText
+            text={leftDeckName.toUpperCase()} // Match styling from reference if uppercased
+            x={deckNameTextPadding}
+            y={purpleBarY} // New y, verticalAlign will handle centering within the bar height
+            width={leftTextWidth}
+            height={PURPLE_BAR_HEIGHT} // Set height for verticalAlign
+            wrap="word" // Enable word wrapping
+            fontSize={TEXT_FONT_SIZE}
+            fontFamily={TEXT_FONT_FAMILY}
+            fontStyle="bold"
+            fill={TEXT_COLOR}
+            stroke={TEXT_STROKE_COLOR}
+            strokeWidth={2.3} // Slightly thicker stroke can look better
+            align="center"
+            verticalAlign="middle"
+            draggable={false} // Typically not draggable, but can be enabled
+          />
+        )}
+        {/* Right Deck Name (Video Mode Only) */}
+        {thumbnailType === "Video" && (
+          <KonvaText
+            text={rightDeckName.toUpperCase()} // Match styling from reference if uppercased
+            x={rightTextX}
+            y={purpleBarY} // New y
+            width={rightTextWidth}
+            height={PURPLE_BAR_HEIGHT} // Set height for verticalAlign
+            wrap="word" // Enable word wrapping
+            fontSize={TEXT_FONT_SIZE}
+            fontFamily={TEXT_FONT_FAMILY}
+            fontStyle="bold"
+            fill={TEXT_COLOR}
+            stroke={TEXT_STROKE_COLOR}
+            strokeWidth={2.3}
+            align="center"
+            verticalAlign="middle"
+            draggable={false}
+          />
+        )}
+
+        {/* Stream Mode Texts */}
+        {thumbnailType === "Stream" && logoToDisplay && (
+          <>
+            {/* Stream Date */}
+            <KonvaText
+              text={(streamDate ?? '').toUpperCase()}
+              x={middleX - logoToDisplay.calculatedWidth / 2}
+              y={middleY - 200} // Adjust positioning as needed
+              width={logoToDisplay.calculatedWidth}
+              fontSize={TEXT_FONT_SIZE * 1.2} // Slightly smaller
+              fontFamily={TEXT_FONT_FAMILY}
+              fontStyle="bold"
+              fill={TEXT_COLOR}
+              stroke={TEXT_STROKE_COLOR}
+              strokeWidth={2}
+              align="center"
+              verticalAlign="middle"
+            />
+            {/* MODERN FNM */}
+            <KonvaText
+              text="MODERN FNM"
+              x={middleX - logoToDisplay.calculatedWidth / 2}
+              y={middleY - 120} // Adjust positioning as needed
+              width={logoToDisplay.calculatedWidth}
+              fontSize={TEXT_FONT_SIZE * 0.8} // Smaller than date, similar to deck names
+              fontFamily={TEXT_FONT_FAMILY}
+              fontStyle="bold"
+              fill={TEXT_COLOR}
+              stroke={TEXT_STROKE_COLOR}
+              strokeWidth={1.8}
+              align="center"
+              verticalAlign="middle"
+            />
+            {/* LIVE! */}
+            <KonvaText
+              text="LIVE!"
+              x={middleX - logoToDisplay.calculatedWidth / 2}
+              y={middleY + 190} // Below logo, adjust spacing
+              width={logoToDisplay.calculatedWidth}
+              fontSize={TEXT_FONT_SIZE * 1.5} // Big letters
+              fontFamily={TEXT_FONT_FAMILY}
+              fontStyle="bold"
+              fill={TEXT_COLOR}
+              stroke={TEXT_STROKE_COLOR}
+              strokeWidth={2.5}
+              align="center"
+              verticalAlign="middle"
+            />
+          </>
+        )}
       </Layer>
     </Stage>
   );

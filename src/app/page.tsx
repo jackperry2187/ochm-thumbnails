@@ -19,6 +19,7 @@ import {
 } from '~/components/ui/dialog';
 import Image from 'next/image';
 import { Input } from '~/components/ui/input';
+import { RadioGroup, RadioGroupItem } from '~/components/ui/radio-group';
 
 // Define types for card slots for better type safety
 type CardSlot = 'topLeft' | 'bottomLeft' | 'topRight' | 'bottomRight';
@@ -45,10 +46,15 @@ interface ArtUsageInfoType {
   lastUsedAt: Date;
 }
 
+export type ThumbnailType = "Video" | "Stream";
+
 export default function HomePage() {
   const [leftDeckName, setLeftDeckName] = useState('');
   const [rightDeckName, setRightDeckName] = useState('');
   const thumbnailCanvasRef = useRef<ThumbnailCanvasHandle>(null);
+
+  const [thumbnailType, setThumbnailType] = useState<ThumbnailType>("Video");
+  const [streamDate, setStreamDate] = useState('');
 
   const [cardStates, setCardStates] = useState<Record<CardSlot, CardState>>({
     topLeft: { ...initialCardState },
@@ -70,6 +76,21 @@ export default function HomePage() {
   const [logoX, setLogoX] = useState<number | undefined>(undefined);
   const [logoY, setLogoY] = useState<number | undefined>(undefined);
   const [logoYOffset, setLogoYOffset] = useState<number>(18);
+
+  useEffect(() => {
+    // Clear card images when thumbnail type changes
+    setCardStates({
+      topLeft: { ...initialCardState },
+      bottomLeft: { ...initialCardState },
+      topRight: { ...initialCardState },
+      bottomRight: { ...initialCardState },
+    });
+
+    if (thumbnailType === "Stream") {
+      setLeftDeckName('');
+      setRightDeckName('');
+    }
+  }, [thumbnailType]);
 
   const cardArtsQuery = api.scryfall.getCardArts.useQuery(
     { cardName: selectedCardNameForArt },
@@ -202,9 +223,27 @@ export default function HomePage() {
 
       const dataURL = stage.toDataURL({ pixelRatio: 1.3334 });
       const link = document.createElement('a');
-      const safeLeftDeckName = leftDeckName.replace(/[^\w-]/gi, '_').toLowerCase() || 'deck1';
-      const safeRightDeckName = rightDeckName.replace(/[^\w-]/gi, '_').toLowerCase() || 'deck2';
-      link.download = `thumbnail-${safeLeftDeckName}-vs-${safeRightDeckName}.png`;
+
+      // Helper function to convert string to PascalCase
+      const toPascalCase = (str: string) => {
+        return str
+          .replace(/[^\\w\\s-]/gi, '') // Remove special characters except hyphens and spaces
+          .replace(/\\s+|-+/g, ' ') // Replace hyphens and multiple spaces with a single space
+          .split(' ')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+          .join('');
+      };
+
+      let fileName = '';
+      if (thumbnailType === "Stream") {
+        const formattedDate = streamDate.replace(/\//g, '-') || 'NoDate';
+        fileName = `Livestream-${formattedDate}.png`;
+      } else {
+        const pascalLeftDeckName = toPascalCase(leftDeckName || 'Deck1');
+        const pascalRightDeckName = toPascalCase(rightDeckName || 'Deck2');
+        fileName = `${pascalLeftDeckName}Vs${pascalRightDeckName}.png`;
+      }
+      link.download = fileName;
       link.href = dataURL;
       document.body.appendChild(link);
       link.click();
@@ -247,6 +286,7 @@ export default function HomePage() {
                   value={leftDeckName}
                   onValueChange={setLeftDeckName}
                   placeholder="Enter Left Deck Name..."
+                  disabled={thumbnailType === "Stream"}
                 />
               </div>
               <div className="space-y-2">
@@ -337,6 +377,8 @@ export default function HomePage() {
                 logoX={logoX}
                 logoY={logoY}
                 logoYOffset={logoYOffset}
+                thumbnailType={thumbnailType}
+                streamDate={streamDate}
               />
             </div>
             <Button onClick={handleDownload} className='w-full bg-gradient-to-r from-pink-400 via-purple-400 to-orange-400 text-indigo-700 hover:text-indigo-900 hover:from-pink-500 hover:via-purple-500 hover:to-orange-500 text-lg font-semibold shadow-md hover:shadow-lg transition-all duration-150 transform hover:scale-105'>Download Thumbnail</Button>
@@ -352,6 +394,7 @@ export default function HomePage() {
                   value={rightDeckName}
                   onValueChange={setRightDeckName}
                   placeholder="Enter Right Deck Name..."
+                  disabled={thumbnailType === "Stream"}
                 />
               </div>
               <div className="space-y-2">
@@ -370,6 +413,38 @@ export default function HomePage() {
                   placeholder="Search Bottom Right Card..."
                 />
               </div>
+
+              <div className="space-y-2 border-t border-indigo-400/30 pt-4 mt-4">
+                <Label className='text-indigo-200'>Thumbnail Type</Label>
+                <RadioGroup
+                  defaultValue="Video"
+                  onValueChange={(value) => setThumbnailType(value as ThumbnailType)}
+                  className="flex space-x-2"
+                >
+                  <div className="flex items-center space-x-1">
+                    <RadioGroupItem value="Video" id="video-type" />
+                    <Label htmlFor="video-type" className='text-indigo-300 font-normal'>Video</Label>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <RadioGroupItem value="Stream" id="stream-type" />
+                    <Label htmlFor="stream-type" className='text-indigo-300 font-normal'>Stream</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {thumbnailType === "Stream" && (
+                <div className="space-y-2">
+                  <Label htmlFor="stream-date" className='text-indigo-200'>Stream Date</Label>
+                  <Input
+                    id="stream-date"
+                    type="text"
+                    value={streamDate}
+                    onChange={(e) => setStreamDate(e.target.value)}
+                    placeholder="MM/DD/YY"
+                    className="bg-slate-700/50 border-indigo-500/50 text-sm h-8"
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
