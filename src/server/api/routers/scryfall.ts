@@ -3,29 +3,25 @@ import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 
 const SCRYFALL_API_BASE = "https://api.scryfall.com";
-const USER_AGENT = "OCHMThumbnailsApp/1.0"; // Define your app's User-Agent
+const USER_AGENT = "OCHMThumbnailsApp/1.0";
 
-// Allowed domains for the image proxy
 const ALLOWED_IMAGE_DOMAINS = [
   "cards.scryfall.io", 
-  "c1.scryfall.com", // Older image domain, still sometimes seen
+  "c1.scryfall.com",
   "svgs.scryfall.io"
-  // Add other Scryfall image subdomains if necessary
 ];
 
-const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB limit for proxied images
-const FETCH_TIMEOUT_MS = 5000; // 5 seconds timeout for fetching image headers/data
+const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
+const FETCH_TIMEOUT_MS = 5000;
 
-// Helper function to introduce a delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Wrapper for fetch calls to Scryfall API
 async function fetchScryfall(path: string, options?: RequestInit) {
-  await delay(100); // Introduce a 100ms delay
+  await delay(100);
 
   const headers = {
     "User-Agent": USER_AGENT,
-    "Accept": "application/json, */*;q=0.8", // Standard Accept header
+    "Accept": "application/json, */*;q=0.8",
     ...(options?.headers ?? {}),
   };
 
@@ -69,7 +65,6 @@ interface ScryfallCard {
     artist?: string;
     image_uris?: ScryfallCardImageUris;
   }>;
-  // ... other card properties
 }
 
 interface ScryfallSearchResponse {
@@ -80,26 +75,60 @@ interface ScryfallSearchResponse {
   data: ScryfallCard[];
 }
 
+const handleScryfallResponse = async <T>(response: Response, operation: string): Promise<T | null> => {
+  if (!response.ok) {
+    console.error(`Scryfall ${operation} API error:`, response.status, await response.text());
+    return null;
+  }
+  return response.json() as Promise<T>;
+};
+
+const collectCardArts = (data: ScryfallSearchResponse) => {
+  const collectedArts: Array<{ artUrl: string; set: string; scryfallPrintId: string; artist?: string }> = [];
+  const seenArtUrls = new Set<string>();
+
+  const addArt = (artUrl: string, set: string, cardId: string, artist?: string) => {
+    if (!seenArtUrls.has(artUrl)) {
+      collectedArts.push({
+        artUrl,
+        set: set.toUpperCase(),
+        scryfallPrintId: cardId,
+        artist,
+      });
+      seenArtUrls.add(artUrl);
+    }
+  };
+
+  data.data.forEach((card) => {
+    if (card.image_uris?.art_crop) {
+      addArt(card.image_uris.art_crop, card.set, card.id, card.artist);
+    }
+    
+    if (card.card_faces?.length) {
+      card.card_faces.forEach(face => {
+        if (face.image_uris?.art_crop) {
+          addArt(face.image_uris.art_crop, card.set, card.id, face.artist ?? card.artist);
+        }
+      });
+    }
+  });
+
+  return collectedArts;
+};
+
 export const scryfallRouter = createTRPCRouter({
   autocompleteCardName: publicProcedure
     .input(z.object({ query: z.string().min(2) }))
     .query(async ({ input }) => {
-      if (!input.query) {
-        return [];
-      }
+      if (!input.query) return [];
+      
       try {
         const response = await fetchScryfall(
           `/cards/autocomplete?q=${encodeURIComponent(input.query)}`
         );
-        if (!response.ok) {
-          console.error(
-            "Scryfall autocomplete API error:",
-            response.status,
-            await response.text()
-          );
-          return [];
-        }
-        const data = (await response.json()) as ScryfallAutocompleteResponse | ScryfallError;
+        
+        const data = await handleScryfallResponse<ScryfallAutocompleteResponse | ScryfallError>(response, "autocomplete");
+        if (!data) return [];
 
         if (data.object === "error") {
           console.error("Scryfall autocomplete error:", data.details);
@@ -122,9 +151,8 @@ export const scryfallRouter = createTRPCRouter({
       artist: z.string().optional(),
     })))
     .query(async ({ input }) => {
-      if (!input.cardName) {
-        return [];
-      }
+      if (!input.cardName) return [];
+      
       try {
         const response = await fetchScryfall(
           `/cards/search?q=${encodeURIComponent(
@@ -132,54 +160,15 @@ export const scryfallRouter = createTRPCRouter({
           )}&unique=art&include_variations=true&include_extras=true`
         );
 
-        if (!response.ok) {
-          console.error(
-            "Scryfall search API error:",
-            response.status,
-            await response.text()
-          );
-          return [];
-        }
-
-        const data = (await response.json()) as ScryfallSearchResponse | ScryfallError;
+        const data = await handleScryfallResponse<ScryfallSearchResponse | ScryfallError>(response, "search");
+        if (!data) return [];
 
         if (data.object === "error") {
           console.warn(`Scryfall search error for "${input.cardName}": ${data.details}`);
           return [];
         }
 
-        const collectedArts: Array<{ artUrl: string; set: string; scryfallPrintId: string; artist?: string }> = [];
-        const seenArtUrls = new Set<string>();
-
-        data.data.forEach((card) => {
-          if (card.image_uris?.art_crop) {
-            if (!seenArtUrls.has(card.image_uris.art_crop)) {
-              collectedArts.push({
-                artUrl: card.image_uris.art_crop,
-                set: card.set.toUpperCase(),
-                scryfallPrintId: card.id,
-                artist: card.artist,
-              });
-              seenArtUrls.add(card.image_uris.art_crop);
-            }
-          }
-          if (card.card_faces && Array.isArray(card.card_faces)) {
-            card.card_faces.forEach(face => {
-              if (face.image_uris?.art_crop) {
-                if (!seenArtUrls.has(face.image_uris.art_crop)) {
-                  collectedArts.push({
-                    artUrl: face.image_uris.art_crop,
-                    set: card.set.toUpperCase(),
-                    scryfallPrintId: card.id,
-                    artist: face.artist ?? card.artist,
-                  });
-                  seenArtUrls.add(face.image_uris.art_crop);
-                }
-              }
-            });
-          }
-        });
-        return collectedArts;
+        return collectCardArts(data);
       } catch (error) {
         console.error("Failed to fetch card arts:", error);
         return [];
@@ -198,11 +187,13 @@ export const scryfallRouter = createTRPCRouter({
           });
         }
 
-        // Step 1: Fetch headers to check content length
         const headController = new AbortController();
         const headTimeoutId = setTimeout(() => headController.abort(), FETCH_TIMEOUT_MS);
 
-        const headResponse = await fetch(input.imageUrl, { signal: headController.signal, method: 'HEAD' });
+        const headResponse = await fetch(input.imageUrl, { 
+          signal: headController.signal, 
+          method: 'HEAD' 
+        });
         clearTimeout(headTimeoutId);
 
         if (!headResponse.ok) {
@@ -220,7 +211,6 @@ export const scryfallRouter = createTRPCRouter({
           });
         }
 
-        // Step 2: Fetch the actual image data with timeout
         const dataController = new AbortController();
         const dataTimeoutId = setTimeout(() => dataController.abort(), FETCH_TIMEOUT_MS);
         
@@ -233,17 +223,13 @@ export const scryfallRouter = createTRPCRouter({
             message: `Failed to fetch image from Scryfall: ${response.statusText}`,
           });
         }
-        
-        // Double check content length if the HEAD request didn't provide it (less common)
-        // This is a progressive download, so can be harder to limit strictly here if no Content-Length initially
-        // but Vercel memory/timeout will be the ultimate backstop.
 
         const imageBuffer = await response.arrayBuffer();
         if (imageBuffer.byteLength > MAX_IMAGE_SIZE_BYTES) {
-             throw new TRPCError({
-                code: 'PAYLOAD_TOO_LARGE',
-                message: `Image payload exceeds maximum allowed size of ${MAX_IMAGE_SIZE_BYTES / (1024 * 1024)}MB during download.`,
-            });
+          throw new TRPCError({
+            code: 'PAYLOAD_TOO_LARGE',
+            message: `Image payload exceeds maximum allowed size of ${MAX_IMAGE_SIZE_BYTES / (1024 * 1024)}MB during download.`,
+          });
         }
 
         const imageBase64 = Buffer.from(imageBuffer).toString('base64');
@@ -252,10 +238,10 @@ export const scryfallRouter = createTRPCRouter({
       } catch (error) {
         if (error instanceof TRPCError) throw error;
         if (error instanceof Error && error.name === 'AbortError') {
-            throw new TRPCError({
-                code: 'TIMEOUT',
-                message: 'Request to fetch image timed out.',
-            });
+          throw new TRPCError({
+            code: 'TIMEOUT',
+            message: 'Request to fetch image timed out.',
+          });
         }
         console.error("Error proxying image:", error);
         throw new TRPCError({

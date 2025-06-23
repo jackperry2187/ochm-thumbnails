@@ -82,15 +82,7 @@ const QuadrantImage: React.FC<QuadrantImageProps> = ({
     ctx.rect(0, 0, width, height);
   };
 
-  const handleDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
-    const node = e.target as Konva.Image;
-    let newX = node.x();
-    let newY = node.y();
-    const currentImage = image; // Use the image from state
-
-    const scaledWidth = (currentImage?.width ?? 0) * node.scaleX();
-    const scaledHeight = (currentImage?.height ?? 0) * node.scaleY();
-
+  const constrainPosition = (newX: number, newY: number, scaledWidth: number, scaledHeight: number) => {
     if (newX > 0) newX = 0;
     if (newX + scaledWidth < width) newX = width - scaledWidth;
     if (newY > 0) newY = 0;
@@ -98,25 +90,31 @@ const QuadrantImage: React.FC<QuadrantImageProps> = ({
     
     if (scaledWidth < width) newX = (width - scaledWidth) / 2;
     if (scaledHeight < height) newY = (height - scaledHeight) / 2;
+    
+    return { x: newX, y: newY };
+  };
 
-    node.position({ x: newX, y: newY });
-    setImgPos({ x: newX, y: newY });
+  const handleDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
+    const node = e.target as Konva.Image;
+    const scaledWidth = (image?.width ?? 0) * node.scaleX();
+    const scaledHeight = (image?.height ?? 0) * node.scaleY();
+    
+    const constrainedPos = constrainPosition(node.x(), node.y(), scaledWidth, scaledHeight);
+    
+    node.position(constrainedPos);
+    setImgPos(constrainedPos);
   };
 
   const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault();
     const stage = e.target.getStage();
-    if (!stage || !imageRef.current) return;
-    const currentImage = image; // Use the image from state
+    if (!stage || !imageRef.current || !image) return;
 
     const scaleBy = 1.1;
     const oldScale = imageRef.current.scaleX();
-    const pointer = stage.getPointerPosition(); // pointer is relative to the stage
-    if (!pointer) return;
-
-    // To get pointer position relative to the Group/Quadrant:
-    const group = imageRef.current.getParent(); // Assuming image is in a Group at quadrant x,y
-    const pointerRelativeToGroup = group?.getRelativePointerPosition() ?? pointer;
+    const group = imageRef.current.getParent();
+    const pointerRelativeToGroup = group?.getRelativePointerPosition() ?? stage.getPointerPosition();
+    if (!pointerRelativeToGroup) return;
 
     const mousePointTo = {
       x: (pointerRelativeToGroup.x - imageRef.current.x()) / oldScale,
@@ -124,9 +122,8 @@ const QuadrantImage: React.FC<QuadrantImageProps> = ({
     };
 
     const newScale = e.evt.deltaY > 0 ? oldScale / scaleBy : oldScale * scaleBy;
-    
-    const minScaleX = width / (currentImage?.width ?? width);
-    const minScaleY = height / (currentImage?.height ?? height);
+    const minScaleX = width / image.width;
+    const minScaleY = height / image.height;
     const actualMinScale = Math.max(minScaleX, minScaleY);
     const effectiveNewScale = Math.max(newScale, actualMinScale);
 
@@ -135,21 +132,14 @@ const QuadrantImage: React.FC<QuadrantImageProps> = ({
       y: pointerRelativeToGroup.y - mousePointTo.y * effectiveNewScale,
     };
     
-    const scaledWidth = (currentImage?.width ?? 0) * effectiveNewScale;
-    const scaledHeight = (currentImage?.height ?? 0) * effectiveNewScale;
-
-    if (newPos.x > 0) newPos.x = 0;
-    if (newPos.x + scaledWidth < width) newPos.x = width - scaledWidth;
-    if (newPos.y > 0) newPos.y = 0;
-    if (newPos.y + scaledHeight < height) newPos.y = height - scaledHeight;
-
-    if (scaledWidth < width) newPos.x = (width - scaledWidth) / 2;
-    if (scaledHeight < height) newPos.y = (height - scaledHeight) / 2;
+    const scaledWidth = image.width * effectiveNewScale;
+    const scaledHeight = image.height * effectiveNewScale;
+    const constrainedPos = constrainPosition(newPos.x, newPos.y, scaledWidth, scaledHeight);
 
     imageRef.current.scale({ x: effectiveNewScale, y: effectiveNewScale });
-    imageRef.current.position(newPos);
+    imageRef.current.position(constrainedPos);
     setImgScale({ scaleX: effectiveNewScale, scaleY: effectiveNewScale });
-    setImgPos(newPos);
+    setImgPos(constrainedPos);
   };
 
   // Determine what to render

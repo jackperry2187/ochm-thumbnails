@@ -35,10 +35,86 @@ const PURPLE_COLOR = '#6A0DAD'; // Example purple, adjust to match reference
 const TEXT_COLOR = 'white';
 const TEXT_STROKE_COLOR = 'black';
 const TEXT_FONT_FAMILY = 'Calibri, sans-serif'; // Bold, impactful font
-const TEXT_FONT_SIZE = 48; // Reduced font size for better wrapping
+const TEXT_FONT_SIZE_MAX = 48; // Maximum font size
+const TEXT_FONT_SIZE_MIN = 24; // Minimum font size
 
 // Define fixed logo dimensions on the canvas
 const TARGET_LOGO_HEIGHT = 294; // Target height for the logo
+
+// Helper function to calculate optimal font size for multi-line text that fits within given width and height
+const calculateOptimalFontSize = (
+  text: string,
+  maxWidth: number,
+  maxHeight: number,
+  maxFontSize: number = TEXT_FONT_SIZE_MAX,
+  minFontSize: number = TEXT_FONT_SIZE_MIN,
+  fontFamily: string = TEXT_FONT_FAMILY,
+  fontStyle = 'bold'
+): number => {
+  // Check if we're running on the client side
+  if (typeof document === 'undefined') {
+    return maxFontSize; // Return max font size for SSR
+  }
+
+  // Create a temporary canvas to measure text
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  if (!context) return maxFontSize;
+
+  // Helper function to simulate word wrapping and calculate total height
+  const calculateTextHeight = (fontSize: number): number => {
+    context.font = `${fontStyle} ${fontSize}px ${fontFamily}`;
+    const words = text.split(' ');
+    const lines: string[] = [];
+    let currentLine = '';
+
+    for (const word of words) {
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      const testWidth = context.measureText(testLine).width;
+
+      if (testWidth <= maxWidth) {
+        currentLine = testLine;
+      } else {
+        if (currentLine) {
+          lines.push(currentLine);
+          currentLine = word;
+        } else {
+          // Single word is too wide, use it anyway
+          lines.push(word);
+          currentLine = '';
+        }
+      }
+    }
+
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+
+    // Calculate total height: number of lines * line height
+    // Line height is typically 1.2 times the font size
+    const lineHeight = fontSize * 1.2;
+    return lines.length * lineHeight;
+  };
+
+  // Binary search for optimal font size
+  let low = minFontSize;
+  let high = maxFontSize;
+  let optimalSize = maxFontSize;
+
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    const textHeight = calculateTextHeight(mid);
+
+    if (textHeight <= maxHeight) {
+      optimalSize = mid;
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+
+  return optimalSize;
+};
 
 interface LogoDetails {
   image: HTMLImageElement;
@@ -70,47 +146,35 @@ const ThumbnailCanvas = forwardRef<ThumbnailCanvasHandle, ThumbnailCanvasProps>(
   const [defaultLogoDetails, setDefaultLogoDetails] = useState<LogoDetails | null>(null);
   const [customLogoDetails, setCustomLogoDetails] = useState<LogoDetails | null>(null);
 
-  // Load default logo image
+  const loadLogo = (url: string, setLogoDetails: React.Dispatch<React.SetStateAction<LogoDetails | null>>, isCustom = false) => {
+    const img = new window.Image();
+    img.src = url;
+    img.crossOrigin = 'Anonymous';
+    img.onload = () => {
+      let scaledWidth = TARGET_LOGO_HEIGHT;
+      if (img.naturalWidth && img.naturalHeight) {
+        const aspectRatio = img.naturalWidth / img.naturalHeight;
+        scaledWidth = TARGET_LOGO_HEIGHT * aspectRatio;
+      }
+      setLogoDetails({ image: img, calculatedWidth: scaledWidth });
+    };
+    img.onerror = () => {
+      console.error(`Failed to load ${isCustom ? 'custom' : 'default'} logo image:`, url);
+      setLogoDetails(null);
+    };
+  };
+
   useEffect(() => {
     if (logoUrl) {
-      const img = new window.Image();
-      img.src = logoUrl;
-      img.crossOrigin = 'Anonymous';
-      img.onload = () => {
-        let scaledWidth = TARGET_LOGO_HEIGHT; // Default to square if natural dims are 0
-        if (img.naturalWidth && img.naturalHeight) {
-          const aspectRatio = img.naturalWidth / img.naturalHeight;
-          scaledWidth = TARGET_LOGO_HEIGHT * aspectRatio;
-        }
-        setDefaultLogoDetails({ image: img, calculatedWidth: scaledWidth });
-      };
-      img.onerror = () => {
-        console.error("Failed to load default logo image:", logoUrl);
-        setDefaultLogoDetails(null);
-      };
+      loadLogo(logoUrl, setDefaultLogoDetails);
     } else {
       setDefaultLogoDetails(null);
     }
   }, [logoUrl]);
 
-  // Load custom logo image
   useEffect(() => {
     if (customLogoUrl) {
-      const img = new window.Image();
-      img.src = customLogoUrl;
-      img.crossOrigin = 'Anonymous'; 
-      img.onload = () => {
-        let scaledWidth = TARGET_LOGO_HEIGHT;
-        if (img.naturalWidth && img.naturalHeight) {
-          const aspectRatio = img.naturalWidth / img.naturalHeight;
-          scaledWidth = TARGET_LOGO_HEIGHT * aspectRatio;
-        }
-        setCustomLogoDetails({ image: img, calculatedWidth: scaledWidth });
-      };
-      img.onerror = () => {
-        console.error("Failed to load custom logo image:", customLogoUrl);
-        setCustomLogoDetails(null);
-      };
+      loadLogo(customLogoUrl, setCustomLogoDetails, true);
     } else {
       setCustomLogoDetails(null);
     }
@@ -141,6 +205,23 @@ const ThumbnailCanvas = forwardRef<ThumbnailCanvasHandle, ThumbnailCanvasProps>(
   const rightTextX = defaultLogoCenteredX + defaultLogoLayoutWidth + deckNameTextPadding;
   const rightTextWidth = canvasWidth - rightTextX - deckNameTextPadding;
 
+  // Calculate optimal font sizes for deck names
+  const leftDeckOptimalFontSize = calculateOptimalFontSize(
+    leftDeckName.toUpperCase(),
+    leftTextWidth,
+    PURPLE_BAR_HEIGHT,
+    TEXT_FONT_SIZE_MAX,
+    TEXT_FONT_SIZE_MIN
+  );
+  
+  const rightDeckOptimalFontSize = calculateOptimalFontSize(
+    rightDeckName.toUpperCase(),
+    rightTextWidth,
+    PURPLE_BAR_HEIGHT,
+    TEXT_FONT_SIZE_MAX,
+    TEXT_FONT_SIZE_MIN
+  );
+
   // Determine final X and Y for the logo to be rendered
   let finalLogoX: number;
   let finalLogoY: number;
@@ -169,22 +250,43 @@ const ThumbnailCanvas = forwardRef<ThumbnailCanvasHandle, ThumbnailCanvasProps>(
     getStageInstance: () => stageRef.current,
   }));
 
+  const quadrants = [
+    { src: topLeftArtUrl, x: 0, y: 0 },
+    { src: topRightArtUrl, x: quadrantWidth, y: 0 },
+    { src: bottomLeftArtUrl, x: 0, y: quadrantHeight },
+    { src: bottomRightArtUrl, x: quadrantWidth, y: quadrantHeight },
+  ];
+
+  const streamTexts = [
+    {
+      text: (streamDate ?? '').toUpperCase(),
+      y: middleY - 200,
+      fontSize: TEXT_FONT_SIZE_MAX * 1.2,
+      strokeWidth: 2,
+    },
+    {
+      text: "MODERN FNM",
+      y: middleY - 120,
+      fontSize: TEXT_FONT_SIZE_MAX * 0.8,
+      strokeWidth: 1.8,
+    },
+    {
+      text: "LIVE!",
+      y: middleY + 190,
+      fontSize: TEXT_FONT_SIZE_MAX * 1.5,
+      strokeWidth: 2.5,
+    },
+  ];
+
   return (
     <Stage width={canvasWidth} height={canvasHeight} ref={stageRef} id="konva-stage">
       {/* Layer for Card Art - Using Group for each quadrant to handle positioning */}
       <Layer name="art-layer">
-        <Group x={0} y={0} clip={{ x: 0, y: 0, width: quadrantWidth, height: quadrantHeight }}>
-          <QuadrantImage src={topLeftArtUrl} width={quadrantWidth} height={quadrantHeight}/>
-        </Group>
-        <Group x={quadrantWidth} y={0} clip={{ x: 0, y: 0, width: quadrantWidth, height: quadrantHeight }}>
-          <QuadrantImage src={topRightArtUrl} width={quadrantWidth} height={quadrantHeight}/>
-        </Group>
-        <Group x={0} y={quadrantHeight} clip={{ x: 0, y: 0, width: quadrantWidth, height: quadrantHeight }}>
-          <QuadrantImage src={bottomLeftArtUrl} width={quadrantWidth} height={quadrantHeight}/>
-        </Group>
-        <Group x={quadrantWidth} y={quadrantHeight} clip={{ x: 0, y: 0, width: quadrantWidth, height: quadrantHeight }}>
-          <QuadrantImage src={bottomRightArtUrl} width={quadrantWidth} height={quadrantHeight}/>
-        </Group>
+        {quadrants.map((quadrant, index) => (
+          <Group key={index} x={quadrant.x} y={quadrant.y} clip={{ x: 0, y: 0, width: quadrantWidth, height: quadrantHeight }}>
+            <QuadrantImage src={quadrant.src} width={quadrantWidth} height={quadrantHeight}/>
+          </Group>
+        ))}
       </Layer>
 
       {/* Layer for Static Template Elements */}
@@ -258,8 +360,8 @@ const ThumbnailCanvas = forwardRef<ThumbnailCanvasHandle, ThumbnailCanvasProps>(
             y={purpleBarY} // New y, verticalAlign will handle centering within the bar height
             width={leftTextWidth}
             height={PURPLE_BAR_HEIGHT} // Set height for verticalAlign
-            wrap="word" // Enable word wrapping
-            fontSize={TEXT_FONT_SIZE}
+            wrap="word" // Enable word wrapping for multi-line text
+            fontSize={leftDeckOptimalFontSize}
             fontFamily={TEXT_FONT_FAMILY}
             fontStyle="bold"
             fill={TEXT_COLOR}
@@ -278,8 +380,8 @@ const ThumbnailCanvas = forwardRef<ThumbnailCanvasHandle, ThumbnailCanvasProps>(
             y={purpleBarY} // New y
             width={rightTextWidth}
             height={PURPLE_BAR_HEIGHT} // Set height for verticalAlign
-            wrap="word" // Enable word wrapping
-            fontSize={TEXT_FONT_SIZE}
+            wrap="word" // Enable word wrapping for multi-line text
+            fontSize={rightDeckOptimalFontSize}
             fontFamily={TEXT_FONT_FAMILY}
             fontStyle="bold"
             fill={TEXT_COLOR}
@@ -294,51 +396,23 @@ const ThumbnailCanvas = forwardRef<ThumbnailCanvasHandle, ThumbnailCanvasProps>(
         {/* Stream Mode Texts */}
         {thumbnailType === "Stream" && logoToDisplay && (
           <>
-            {/* Stream Date */}
-            <KonvaText
-              text={(streamDate ?? '').toUpperCase()}
-              x={middleX - logoToDisplay.calculatedWidth / 2}
-              y={middleY - 200} // Adjust positioning as needed
-              width={logoToDisplay.calculatedWidth}
-              fontSize={TEXT_FONT_SIZE * 1.2} // Slightly smaller
-              fontFamily={TEXT_FONT_FAMILY}
-              fontStyle="bold"
-              fill={TEXT_COLOR}
-              stroke={TEXT_STROKE_COLOR}
-              strokeWidth={2}
-              align="center"
-              verticalAlign="middle"
-            />
-            {/* MODERN FNM */}
-            <KonvaText
-              text="MODERN FNM"
-              x={middleX - logoToDisplay.calculatedWidth / 2}
-              y={middleY - 120} // Adjust positioning as needed
-              width={logoToDisplay.calculatedWidth}
-              fontSize={TEXT_FONT_SIZE * 0.8} // Smaller than date, similar to deck names
-              fontFamily={TEXT_FONT_FAMILY}
-              fontStyle="bold"
-              fill={TEXT_COLOR}
-              stroke={TEXT_STROKE_COLOR}
-              strokeWidth={1.8}
-              align="center"
-              verticalAlign="middle"
-            />
-            {/* LIVE! */}
-            <KonvaText
-              text="LIVE!"
-              x={middleX - logoToDisplay.calculatedWidth / 2}
-              y={middleY + 190} // Below logo, adjust spacing
-              width={logoToDisplay.calculatedWidth}
-              fontSize={TEXT_FONT_SIZE * 1.5} // Big letters
-              fontFamily={TEXT_FONT_FAMILY}
-              fontStyle="bold"
-              fill={TEXT_COLOR}
-              stroke={TEXT_STROKE_COLOR}
-              strokeWidth={2.5}
-              align="center"
-              verticalAlign="middle"
-            />
+            {streamTexts.map((textConfig, index) => (
+              <KonvaText
+                key={index}
+                text={textConfig.text}
+                x={middleX - logoToDisplay.calculatedWidth / 2}
+                y={textConfig.y}
+                width={logoToDisplay.calculatedWidth}
+                fontSize={textConfig.fontSize}
+                fontFamily={TEXT_FONT_FAMILY}
+                fontStyle="bold"
+                fill={TEXT_COLOR}
+                stroke={TEXT_STROKE_COLOR}
+                strokeWidth={textConfig.strokeWidth}
+                align="center"
+                verticalAlign="middle"
+              />
+            ))}
           </>
         )}
       </Layer>

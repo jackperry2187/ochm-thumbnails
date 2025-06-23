@@ -57,10 +57,19 @@ export function AutocompleteCombobox({
 
   // Handle error state from tRPC query
   if (error) {
-    // Option 1: Display an error message in the combobox or a toast
-    // console.error("Autocomplete error:", error);
-    // Option 2: Fallback to a simpler input or disable (for now, just log)
+    console.error("Autocomplete error:", error);
   }
+
+  const handleButtonClick = () => {
+    if (value && !open) setSearchQuery(value);
+    setOpen(!open);
+  };
+
+  const showLoading = isLoading && debouncedSearchQuery && debouncedSearchQuery.length > 0;
+  const showEmpty = !isLoading && debouncedSearchQuery && debouncedSearchQuery.length > 1 && (!suggestions || suggestions.length === 0);
+  const showSuggestions = suggestions && suggestions.length > 0;
+  const showCurrentValue = !debouncedSearchQuery && value;
+  const showKeepTyping = !isLoading && debouncedSearchQuery && debouncedSearchQuery.length > 0 && debouncedSearchQuery.length < 2;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -71,11 +80,7 @@ export function AutocompleteCombobox({
           aria-expanded={open}
           className="w-full justify-between"
           disabled={disabled}
-          onClick={() => {
-            if (value && !open) setSearchQuery(value);
-            // else if (!open) setSearchQuery(''); // Optionally clear search when opening if no value
-            setOpen(!open); // Toggle open state
-          }}
+          onClick={handleButtonClick}
         >
           {value ? value : placeholder}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -90,16 +95,15 @@ export function AutocompleteCombobox({
             disabled={disabled || isLoading}
           />
           <CommandList>
-            {isLoading && debouncedSearchQuery && debouncedSearchQuery.length > 0 && <CommandItem disabled>Loading...</CommandItem>}
-            {!isLoading && debouncedSearchQuery && debouncedSearchQuery.length > 1 && (!suggestions || suggestions.length === 0) && (
-              <CommandEmpty>{emptyResultText}</CommandEmpty>
-            )}
-            {suggestions && suggestions.length > 0 && (
+            {showLoading && <CommandItem disabled>Loading...</CommandItem>}
+            {showEmpty && <CommandEmpty>{emptyResultText}</CommandEmpty>}
+            
+            {showSuggestions && (
               <CommandGroup>
                 {suggestions.map((suggestion) => (
                   <CommandItem
                     key={suggestion}
-                    value={suggestion} // This value is used by Command for internal filtering/value if not disabled
+                    value={suggestion}
                     onSelect={() => handleSelect(suggestion)}
                   >
                     <Check
@@ -113,20 +117,20 @@ export function AutocompleteCombobox({
                 ))}
               </CommandGroup>
             )}
-             {/* Show current value if no search query and value exists, allows re-selection or clearing */}
-             {!debouncedSearchQuery && value && (
-                <CommandItem
-                    key={value}
-                    value={value}
-                    onSelect={() => handleSelect(value)}
-                  >
-                     <Check className={cn('mr-2 h-4 w-4', value ? 'opacity-100' : 'opacity-0' )}/>
-                    {value}
-                </CommandItem>
+            
+            {showCurrentValue && (
+              <CommandItem
+                key={value}
+                value={value}
+                onSelect={() => handleSelect(value)}
+              >
+                <Check className={cn('mr-2 h-4 w-4', value ? 'opacity-100' : 'opacity-0')}/>
+                {value}
+              </CommandItem>
             )}
-            {/* Prompt to keep typing if query is too short */}
-            {!isLoading && debouncedSearchQuery && debouncedSearchQuery.length > 0 && debouncedSearchQuery.length < 2 && (
-                 <CommandItem disabled>Keep typing to search...</CommandItem>
+            
+            {showKeepTyping && (
+              <CommandItem disabled>Keep typing to search...</CommandItem>
             )}
           </CommandList>
         </Command>

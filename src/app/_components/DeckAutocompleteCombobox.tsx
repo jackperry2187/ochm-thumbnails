@@ -43,25 +43,32 @@ export function DeckAutocompleteCombobox({
   const { data: suggestions, isLoading } = api.deck.autocompleteDeckName.useQuery(
     { query: debouncedSearchQuery },
     {
-      enabled: !!debouncedSearchQuery && open, // Query when search term exists and popover is open
-      staleTime: 1000 * 60, // 1 minute
+      enabled: !!debouncedSearchQuery && open,
+      staleTime: 1000 * 60,
       placeholderData: (previousData) => previousData,
     }
   );
 
   const handleSelect = (currentValue: string) => {
-    onValueChange(currentValue); // Set the name
-    setSearchQuery(''); // Clear search query after selection
+    onValueChange(currentValue);
+    setSearchQuery('');
     setOpen(false);
   };
   
   const handleInputChange = (inputValue: string) => {
     setSearchQuery(inputValue);
-    // If user types a new name not in suggestions, we still want to update the input field
-    // The actual saving of new deck names will happen on thumbnail download.
-    // So, we directly call onValueChange to update the displayed name in the input.
     onValueChange(inputValue); 
   };
+
+  const handleButtonClick = () => {
+    if (value && !open) setSearchQuery(value); 
+    setOpen(!open);
+  };
+
+  const showLoading = isLoading && debouncedSearchQuery;
+  const showEmpty = !isLoading && debouncedSearchQuery && (!suggestions || suggestions.length === 0);
+  const showSuggestions = suggestions && suggestions.length > 0;
+  const showCreateOption = !isLoading && searchQuery && (!suggestions?.find(s => s.name.toLowerCase() === searchQuery.toLowerCase()));
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -70,15 +77,9 @@ export function DeckAutocompleteCombobox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className={cn(
-            "w-full justify-between"
-          )}
+          className={cn("w-full justify-between")}
           disabled={disabled}
-          onClick={() => {
-            // When opening, if there's a value, populate search to show it / similar items
-            if (value && !open) setSearchQuery(value); 
-            setOpen(!open);
-          }}
+          onClick={handleButtonClick}
         >
           {value ? (
             <span className="truncate text-slate-50">{value}</span>
@@ -92,21 +93,20 @@ export function DeckAutocompleteCombobox({
         <Command shouldFilter={false}>
           <CommandInput 
             placeholder={placeholder} 
-            value={searchQuery} // Controlled input for search
-            onValueChange={handleInputChange} // Update search query and main value
+            value={searchQuery}
+            onValueChange={handleInputChange}
             disabled={disabled}
           />
           <CommandList>
-            {isLoading && debouncedSearchQuery && <CommandItem disabled>Loading...</CommandItem>}
-            {!isLoading && debouncedSearchQuery && (!suggestions || suggestions.length === 0) && (
-              <CommandEmpty>{emptyResultText}</CommandEmpty>
-            )}
-            {suggestions && suggestions.length > 0 && (
+            {showLoading && <CommandItem disabled>Loading...</CommandItem>}
+            {showEmpty && <CommandEmpty>{emptyResultText}</CommandEmpty>}
+            
+            {showSuggestions && (
               <CommandGroup>
                 {suggestions.map((deck) => (
                   <CommandItem
                     key={deck.name}
-                    value={deck.name} // Important for Command internals if not filtering
+                    value={deck.name}
                     onSelect={() => handleSelect(deck.name)}
                     className="flex justify-between"
                   >
@@ -118,15 +118,15 @@ export function DeckAutocompleteCombobox({
                 ))}
               </CommandGroup>
             )}
-            {/* Option to show the currently typed text if it's not in suggestions, allowing creation */}
-            {!isLoading && searchQuery && (!suggestions?.find(s => s.name.toLowerCase() === searchQuery.toLowerCase())) && (
-                <CommandItem
-                    key={searchQuery} // Unique key for the current typed value
-                    value={searchQuery}
-                    onSelect={() => handleSelect(searchQuery)}
-                >
-                    Create &quot;{searchQuery}&quot;
-                </CommandItem>
+            
+            {showCreateOption && (
+              <CommandItem
+                key={searchQuery}
+                value={searchQuery}
+                onSelect={() => handleSelect(searchQuery)}
+              >
+                Create &quot;{searchQuery}&quot;
+              </CommandItem>
             )}
           </CommandList>
         </Command>

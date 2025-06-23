@@ -7,15 +7,14 @@ export const deckRouter = createTRPCRouter({
     .input(z.object({ query: z.string() }))
     .output(z.array(z.object({ name: z.string(), lastUsedAt: z.date() })))
     .query(async ({ ctx, input }) => {
-      if (!input.query) {
-        return [];
-      }
+      if (!input.query) return [];
+      
       try {
-        const decks = await ctx.db.deck.findMany({
+        return await ctx.db.deck.findMany({
           where: {
             name: {
               contains: input.query,
-              mode: "insensitive", // Case-insensitive search
+              mode: "insensitive",
             },
           },
           select: {
@@ -23,14 +22,13 @@ export const deckRouter = createTRPCRouter({
             lastUsedAt: true,
           },
           orderBy: {
-            lastUsedAt: "desc", // Optional: order by most recently used
+            lastUsedAt: "desc",
           },
-          take: 10, // Limit results
+          take: 10,
         });
-        return decks;
       } catch (error) {
         console.error("Failed to autocomplete deck name:", error);
-        return []; // Return empty array on error
+        return [];
       }
     }),
 
@@ -40,7 +38,7 @@ export const deckRouter = createTRPCRouter({
     }))
     .mutation(async ({ input, ctx }) => {
       try {
-        const deck = await ctx.db.deck.upsert({
+        return await ctx.db.deck.upsert({
           where: { name: input.name },
           update: {
             lastUsedAt: new Date(),
@@ -49,7 +47,6 @@ export const deckRouter = createTRPCRouter({
             name: input.name,
           },
         });
-        return deck;
       } catch (error) {
         console.error("Failed to save or update deck name:", error);
         throw new TRPCError({

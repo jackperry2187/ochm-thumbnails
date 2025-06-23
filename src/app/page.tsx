@@ -21,18 +21,16 @@ import Image from 'next/image';
 import { Input } from '~/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '~/components/ui/radio-group';
 
-// Define types for card slots for better type safety
 type CardSlot = 'topLeft' | 'bottomLeft' | 'topRight' | 'bottomRight';
 
 interface CardState {
   name: string;
   artUrl: string | null;
-  scryfallCardId: string | null; // This will now be the Scryfall Print ID
+  scryfallCardId: string | null;
 }
 
 const initialCardState: CardState = { name: '', artUrl: null, scryfallCardId: null };
 
-// Matches the output of api.scryfall.getCardArts
 interface SelectedArtType {
   artUrl: string;
   set: string;
@@ -40,13 +38,15 @@ interface SelectedArtType {
   artist?: string;
 }
 
-// Matches the output of api.art.getArtUsage
 interface ArtUsageInfoType {
   scryfallArtUrl: string;
   lastUsedAt: Date;
 }
 
 export type ThumbnailType = "Video" | "Stream";
+
+const STALE_TIME_CARDS = 1000 * 60 * 10;
+const STALE_TIME_USAGE = 1000 * 60 * 5;
 
 export default function HomePage() {
   const [leftDeckName, setLeftDeckName] = useState('');
@@ -96,7 +96,7 @@ export default function HomePage() {
     { cardName: selectedCardNameForArt },
     {
       enabled: !!selectedCardNameForArt && !!currentSlotForArtSelection,
-      staleTime: 1000 * 60 * 10, 
+      staleTime: STALE_TIME_CARDS, 
     }
   );
   
@@ -108,9 +108,48 @@ export default function HomePage() {
     { artUrls: artUsageQueryUrls },
     {
       enabled: artUsageQueryUrls.length > 0 && isArtDialogOpen, 
-      staleTime: 1000 * 60 * 5, 
+      staleTime: STALE_TIME_USAGE, 
     }
   );
+
+  // Card usage queries
+  const cardQueries = {
+    topLeft: api.scryfall.getCardArts.useQuery(
+      { cardName: cardStates.topLeft.name },
+      { enabled: !!cardStates.topLeft.name, staleTime: STALE_TIME_CARDS }
+    ),
+    bottomLeft: api.scryfall.getCardArts.useQuery(
+      { cardName: cardStates.bottomLeft.name },
+      { enabled: !!cardStates.bottomLeft.name, staleTime: STALE_TIME_CARDS }
+    ),
+    topRight: api.scryfall.getCardArts.useQuery(
+      { cardName: cardStates.topRight.name },
+      { enabled: !!cardStates.topRight.name, staleTime: STALE_TIME_CARDS }
+    ),
+    bottomRight: api.scryfall.getCardArts.useQuery(
+      { cardName: cardStates.bottomRight.name },
+      { enabled: !!cardStates.bottomRight.name, staleTime: STALE_TIME_CARDS }
+    ),
+  };
+
+  const usageQueries = {
+    topLeft: api.art.getArtUsage.useQuery(
+      { artUrls: cardQueries.topLeft.data?.map(art => art.artUrl) ?? [] },
+      { enabled: !!cardQueries.topLeft.data?.length, staleTime: STALE_TIME_USAGE }
+    ),
+    bottomLeft: api.art.getArtUsage.useQuery(
+      { artUrls: cardQueries.bottomLeft.data?.map(art => art.artUrl) ?? [] },
+      { enabled: !!cardQueries.bottomLeft.data?.length, staleTime: STALE_TIME_USAGE }
+    ),
+    topRight: api.art.getArtUsage.useQuery(
+      { artUrls: cardQueries.topRight.data?.map(art => art.artUrl) ?? [] },
+      { enabled: !!cardQueries.topRight.data?.length, staleTime: STALE_TIME_USAGE }
+    ),
+    bottomRight: api.art.getArtUsage.useQuery(
+      { artUrls: cardQueries.bottomRight.data?.map(art => art.artUrl) ?? [] },
+      { enabled: !!cardQueries.bottomRight.data?.length, staleTime: STALE_TIME_USAGE }
+    ),
+  };
 
   useEffect(() => {
     if (artUsageQuery.isSuccess && artUsageQuery.data) {
@@ -124,6 +163,18 @@ export default function HomePage() {
         setArtUsageMap({}); 
     }
   }, [artUsageQuery.isSuccess, artUsageQuery.data, artUsageQuery.isError, artUsageQuery.error]);
+
+  // Helper function to get most recent usage date from usage data
+  const getMostRecentUsage = (usageData: ArtUsageInfoType[] | undefined) => {
+    if (!usageData || usageData.length === 0) return null;
+    
+    const dates = usageData
+      .map(record => record.lastUsedAt)
+      .filter(date => date !== null)
+      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+    
+    return dates.length > 0 ? dates[0] : null;
+  };
 
   const handleCardSelection = useCallback((slot: CardSlot, cardName: string) => {
     setCardStates((prev) => ({
@@ -146,7 +197,27 @@ export default function HomePage() {
 
   useEffect(() => {
     if (cardArtsQuery.isSuccess && cardArtsQuery.data) {
-      if (cardArtsQuery.data.length > 0) {
+      if (cardArtsQuery.data.length === 1) {
+        // Auto-select if only one art option exists
+        if (currentSlotForArtSelection) {
+          const selectedArt = cardArtsQuery.data[0];
+          if (selectedArt) {
+            setCardStates((prev) => ({
+              ...prev,
+              [currentSlotForArtSelection]: {
+                ...prev[currentSlotForArtSelection],
+                artUrl: selectedArt.artUrl,
+                scryfallCardId: selectedArt.scryfallPrintId,
+              },
+            }));
+          }
+          // Reset selection state
+          setCurrentSlotForArtSelection(null);
+          setSelectedCardNameForArt('');
+          setArtUrlsForSelection([]);
+        }
+      } else if (cardArtsQuery.data.length > 1) {
+        // Multiple options - show dialog
         setArtUrlsForSelection(cardArtsQuery.data);
         if (currentSlotForArtSelection) setIsArtDialogOpen(true);
       } else {
@@ -185,6 +256,19 @@ export default function HomePage() {
     setIsArtDialogOpen(false);
     setArtUsageMap({});
   };
+
+  const swapCards = useCallback((side: 'left' | 'right') => {
+    setCardStates(prev => ({
+      ...prev,
+      ...(side === 'left' ? {
+        topLeft: prev.bottomLeft,
+        bottomLeft: prev.topLeft,
+      } : {
+        topRight: prev.bottomRight,
+        bottomRight: prev.topRight,
+      })
+    }));
+  }, []);
 
   const handleDialogClose = (open: boolean) => {
     setIsArtDialogOpen(open);
@@ -227,8 +311,8 @@ export default function HomePage() {
       // Helper function to convert string to PascalCase
       const toPascalCase = (str: string) => {
         return str
-          .replace(/[^\\w\\s-]/gi, '') // Remove special characters except hyphens and spaces
-          .replace(/\\s+|-+/g, ' ') // Replace hyphens and multiple spaces with a single space
+          .replace(/[^\w\s-]/gi, '') // Remove special characters except hyphens and spaces
+          .replace(/\s+|-+/g, ' ') // Replace hyphens and multiple spaces with a single space
           .split(' ')
           .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
           .join('');
@@ -271,6 +355,57 @@ export default function HomePage() {
     }
   };
 
+  const renderUsageInfo = (slot: CardSlot) => {
+    const cardName = cardStates[slot].name;
+    const usageData = usageQueries[slot].data;
+    const isLoading = usageQueries[slot].isLoading;
+    
+    if (!cardName || isLoading) return null;
+
+    const mostRecent = getMostRecentUsage(usageData);
+    return (
+      <div className="text-xs">
+        {mostRecent ? (
+          <p className="text-amber-400">
+            Last used: {format(new Date(mostRecent), 'PPp')}
+          </p>
+        ) : (
+          <p className="text-green-400">Never used</p>
+        )}
+      </div>
+    );
+  };
+
+  const renderCardInput = (slot: CardSlot, label: string, placeholder: string) => (
+    <div className="space-y-2">
+      <Label htmlFor={slot} className='text-indigo-200'>{label}</Label>
+      <AutocompleteCombobox
+        value={cardStates[slot].name}
+        onValueChange={(name) => handleCardSelection(slot, name)}
+        placeholder={placeholder}
+      />
+      {renderUsageInfo(slot)}
+    </div>
+  );
+
+  const renderSwapButton = (side: 'left' | 'right') => {
+    const hasCards = side === 'left' 
+      ? cardStates.topLeft.name || cardStates.bottomLeft.name
+      : cardStates.topRight.name || cardStates.bottomRight.name;
+
+    return (
+      <Button
+        onClick={() => swapCards(side)}
+        disabled={!hasCards}
+        variant="outline"
+        size="sm"
+        className="w-full border-purple-500/50 text-purple-300 hover:text-purple-200 hover:border-purple-400 bg-purple-500/10 hover:bg-purple-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        ↕️ Swap Top & Bottom
+      </Button>
+    );
+  };
+
   return (
     <>
       <main className="flex flex-col min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 text-slate-50">
@@ -289,22 +424,9 @@ export default function HomePage() {
                   disabled={thumbnailType === "Stream"}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="top-left-card" className='text-indigo-200'>Top Left Card</Label>
-                <AutocompleteCombobox
-                  value={cardStates.topLeft.name}
-                  onValueChange={(name) => handleCardSelection('topLeft', name)}
-                  placeholder="Search Top Left Card..."
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="bottom-left-card" className='text-indigo-200'>Bottom Left Card</Label>
-                <AutocompleteCombobox
-                  value={cardStates.bottomLeft.name}
-                  onValueChange={(name) => handleCardSelection('bottomLeft', name)}
-                  placeholder="Search Bottom Left Card..."
-                />
-              </div>
+              {renderCardInput('topLeft', 'Top Left Card', 'Search Top Left Card...')}
+              {renderCardInput('bottomLeft', 'Bottom Left Card', 'Search Bottom Left Card...')}
+              {renderSwapButton('left')}
 
               {/* Custom Logo Upload Section */}
               <div className="space-y-2 border-t border-indigo-400/30 pt-4 mt-4">
@@ -397,22 +519,9 @@ export default function HomePage() {
                   disabled={thumbnailType === "Stream"}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="top-right-card" className="text-indigo-200">Top Right Card</Label>
-                <AutocompleteCombobox
-                  value={cardStates.topRight.name}
-                  onValueChange={(name) => handleCardSelection('topRight', name)}
-                  placeholder="Search Top Right Card..."
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="bottom-right-card" className="text-indigo-200">Bottom Right Card</Label>
-                <AutocompleteCombobox
-                  value={cardStates.bottomRight.name}
-                  onValueChange={(name) => handleCardSelection('bottomRight', name)}
-                  placeholder="Search Bottom Right Card..."
-                />
-              </div>
+              {renderCardInput('topRight', 'Top Right Card', 'Search Top Right Card...')}
+              {renderCardInput('bottomRight', 'Bottom Right Card', 'Search Bottom Right Card...')}
+              {renderSwapButton('right')}
 
               <div className="space-y-2 border-t border-indigo-400/30 pt-4 mt-4">
                 <Label className='text-indigo-200'>Thumbnail Type</Label>
