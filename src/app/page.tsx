@@ -55,6 +55,7 @@ export default function HomePage() {
 
   const [thumbnailType, setThumbnailType] = useState<ThumbnailType>("Video");
   const [streamDate, setStreamDate] = useState('');
+  const [eventName, setEventName] = useState('MODERN FNM');
 
   const [cardStates, setCardStates] = useState<Record<CardSlot, CardState>>({
     topLeft: { ...initialCardState },
@@ -501,6 +502,7 @@ export default function HomePage() {
                 logoYOffset={logoYOffset}
                 thumbnailType={thumbnailType}
                 streamDate={streamDate}
+                eventName={eventName}
               />
             </div>
             <Button onClick={handleDownload} className='w-full bg-gradient-to-r from-pink-400 via-purple-400 to-orange-400 text-indigo-700 hover:text-indigo-900 hover:from-pink-500 hover:via-purple-500 hover:to-orange-500 text-lg font-semibold shadow-md hover:shadow-lg transition-all duration-150 transform hover:scale-105'>Download Thumbnail</Button>
@@ -550,6 +552,15 @@ export default function HomePage() {
                     value={streamDate}
                     onChange={(e) => setStreamDate(e.target.value)}
                     placeholder="MM/DD/YY"
+                    className="bg-slate-700/50 border-indigo-500/50 text-sm h-8"
+                  />
+                  <Label htmlFor="event-name" className='text-indigo-200 mt-2'>Event Name</Label>
+                  <Input
+                    id="event-name"
+                    type="text"
+                    value={eventName}
+                    onChange={(e) => setEventName(e.target.value)}
+                    placeholder="MODERN FNM"
                     className="bg-slate-700/50 border-indigo-500/50 text-sm h-8"
                   />
                 </div>

@@ -22,6 +22,7 @@ interface ThumbnailCanvasProps {
   logoYOffset?: number; // New: Y offset for custom logo
   thumbnailType: ThumbnailType;
   streamDate?: string;
+  eventName?: string;
 }
 
 export interface ThumbnailCanvasHandle {
@@ -138,6 +139,7 @@ const ThumbnailCanvas = forwardRef<ThumbnailCanvasHandle, ThumbnailCanvasProps>(
     logoYOffset: customLogoYOffsetFromProp, // New prop, renamed for clarity
     thumbnailType,
     streamDate,
+    eventName,
   },
   ref
 ) => {
@@ -222,6 +224,37 @@ const ThumbnailCanvas = forwardRef<ThumbnailCanvasHandle, ThumbnailCanvasProps>(
     TEXT_FONT_SIZE_MIN
   );
 
+  // Dynamically size event name font based on length
+  const getEventFontSize = (name: string) => {
+    if (!name) return TEXT_FONT_SIZE_MAX * 0.8;
+    const base = TEXT_FONT_SIZE_MAX * 0.8;
+    if (name.length <= 10) return base;
+    if (name.length <= 18) return base * 0.9;
+    if (name.length <= 28) return base * 0.8;
+    return base * 0.7;
+  };
+
+  const streamTexts = [
+    {
+      text: (streamDate ?? '').toUpperCase(),
+      y: middleY - 200,
+      fontSize: TEXT_FONT_SIZE_MAX * 1.2,
+      strokeWidth: 2,
+    },
+    {
+      text: (eventName ?? 'MODERN FNM').toUpperCase(),
+      y: middleY - 120,
+      fontSize: getEventFontSize(eventName ?? 'MODERN FNM'),
+      strokeWidth: 1.8,
+    },
+    {
+      text: "LIVE!",
+      y: middleY + 190,
+      fontSize: TEXT_FONT_SIZE_MAX * 1.5,
+      strokeWidth: 2.5,
+    },
+  ];
+
   // Determine final X and Y for the logo to be rendered
   let finalLogoX: number;
   let finalLogoY: number;
@@ -255,27 +288,6 @@ const ThumbnailCanvas = forwardRef<ThumbnailCanvasHandle, ThumbnailCanvasProps>(
     { src: topRightArtUrl, x: quadrantWidth, y: 0 },
     { src: bottomLeftArtUrl, x: 0, y: quadrantHeight },
     { src: bottomRightArtUrl, x: quadrantWidth, y: quadrantHeight },
-  ];
-
-  const streamTexts = [
-    {
-      text: (streamDate ?? '').toUpperCase(),
-      y: middleY - 200,
-      fontSize: TEXT_FONT_SIZE_MAX * 1.2,
-      strokeWidth: 2,
-    },
-    {
-      text: "MODERN FNM",
-      y: middleY - 120,
-      fontSize: TEXT_FONT_SIZE_MAX * 0.8,
-      strokeWidth: 1.8,
-    },
-    {
-      text: "LIVE!",
-      y: middleY + 190,
-      fontSize: TEXT_FONT_SIZE_MAX * 1.5,
-      strokeWidth: 2.5,
-    },
   ];
 
   return (
@@ -422,4 +434,4 @@ const ThumbnailCanvas = forwardRef<ThumbnailCanvasHandle, ThumbnailCanvasProps>(
 
 ThumbnailCanvas.displayName = 'ThumbnailCanvas';
 
-export default ThumbnailCanvas; 
+export default ThumbnailCanvas;
