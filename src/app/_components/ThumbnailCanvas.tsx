@@ -15,7 +15,7 @@ interface ThumbnailCanvasProps {
   bottomRightArtUrl: string | null;
   canvasWidth?: number;
   canvasHeight?: number;
-  logoUrl?: string; // Existing default logo prop
+  logoUrl?: string; // Default to the provided logo path
   customLogoUrl?: string | null; // New: For custom uploaded logo
   logoX?: number; // New: X position for custom logo
   logoY?: number; // New: Y position for custom logo
@@ -23,6 +23,8 @@ interface ThumbnailCanvasProps {
   thumbnailType: ThumbnailType;
   streamDate?: string;
   eventName?: string;
+  customBgUrl?: string | null; // New: For custom background image
+  customBgScale?: number; // New: Scale for custom background image
 }
 
 export interface ThumbnailCanvasHandle {
@@ -140,6 +142,8 @@ const ThumbnailCanvas = forwardRef<ThumbnailCanvasHandle, ThumbnailCanvasProps>(
     thumbnailType,
     streamDate,
     eventName,
+    customBgUrl, // New prop for custom background URL
+    customBgScale, // New prop for custom background scale
   },
   ref
 ) => {
@@ -181,6 +185,18 @@ const ThumbnailCanvas = forwardRef<ThumbnailCanvasHandle, ThumbnailCanvasProps>(
       setCustomLogoDetails(null);
     }
   }, [customLogoUrl]);
+
+  // Custom background logic
+  const [bgImageObj, setBgImageObj] = useState<HTMLImageElement | null>(null);
+  useEffect(() => {
+    if (!customBgUrl) {
+      setBgImageObj(null);
+      return;
+    }
+    const img = new window.Image();
+    img.src = customBgUrl;
+    img.onload = () => setBgImageObj(img);
+  }, [customBgUrl]);
 
   // Dimensions for elements
   const middleX = canvasWidth / 2;
@@ -292,6 +308,22 @@ const ThumbnailCanvas = forwardRef<ThumbnailCanvasHandle, ThumbnailCanvasProps>(
 
   return (
     <Stage width={canvasWidth} height={canvasHeight} ref={stageRef} id="konva-stage">
+      {/* Background Layer - should be first so it's behind everything */}
+      <Layer name="background-layer">
+        {bgImageObj && (
+          <KonvaImage
+            image={bgImageObj}
+            x={0}
+            y={0}
+            scaleX={customBgScale ?? 1}
+            scaleY={customBgScale ?? 1}
+            draggable={true}
+            width={canvasWidth}
+            height={canvasHeight}
+            listening={true}
+          />
+        )}
+      </Layer>
       {/* Layer for Card Art - Using Group for each quadrant to handle positioning */}
       <Layer name="art-layer">
         {quadrants.map((quadrant, index) => (
@@ -426,6 +458,22 @@ const ThumbnailCanvas = forwardRef<ThumbnailCanvasHandle, ThumbnailCanvasProps>(
               />
             ))}
           </>
+        )}
+      </Layer>
+
+      {/* Logo and Stream Texts Layer */}
+      <Layer>
+        {/* Actual Logo Image: Conditional rendering based on custom or default logo */}
+        {logoToDisplay && (
+          <KonvaImage
+            image={logoToDisplay.image}
+            x={finalLogoX}
+            y={finalLogoY}
+            width={logoToDisplay.calculatedWidth}
+            height={TARGET_LOGO_HEIGHT}
+            draggable={false}
+            listening={false}
+          />
         )}
       </Layer>
     </Stage>

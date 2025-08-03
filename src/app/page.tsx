@@ -78,6 +78,10 @@ export default function HomePage() {
   const [logoY, setLogoY] = useState<number | undefined>(undefined);
   const [logoYOffset, setLogoYOffset] = useState<number>(18);
 
+  // State for custom background
+  const [customBgUrl, setCustomBgUrl] = useState<string | null>(null);
+  const [customBgScale, setCustomBgScale] = useState<number>(1);
+
   useEffect(() => {
     // Clear card images when thumbnail type changes
     setCardStates({
@@ -356,6 +360,16 @@ export default function HomePage() {
     }
   };
 
+  const handleBgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setCustomBgUrl(ev.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const renderUsageInfo = (slot: CardSlot) => {
     const cardName = cardStates[slot].name;
     const usageData = usageQueries[slot].data;
@@ -441,43 +455,32 @@ export default function HomePage() {
                 />
               </div>
 
-              {showCustomLogoControls && customLogoUrl && (
-                <>
-                  <div className="space-y-1">
-                    <Label htmlFor="logo-x" className='text-xs text-indigo-300'>Logo X</Label>
+              {/* Custom Background Upload Section */}
+              <div className="space-y-2">
+                <Label htmlFor="custom-bg-upload" className='text-indigo-200'>Custom Background</Label>
+                <Input
+                  id="custom-bg-upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleBgUpload}
+                  className="w-full text-sm text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-orange-400/20 file:text-orange-300 hover:file:bg-orange-400/30 focus-visible:ring-1 focus-visible:ring-orange-500 focus-visible:ring-offset-0 focus-visible:ring-offset-slate-900"
+                />
+                {customBgUrl && (
+                  <div className="flex flex-col space-y-1 pt-2">
+                    <Label htmlFor="custom-bg-scale" className='text-xs text-orange-300'>Background Zoom</Label>
                     <Input
-                      id="logo-x"
-                      type="number"
-                      value={logoX ?? ''}
-                      onChange={(e) => setLogoX(e.target.value === '' ? undefined : Number(e.target.value))}
-                      placeholder="Auto (center)"
-                      className="bg-slate-700/50 border-indigo-500/50 text-sm h-8"
+                      id="custom-bg-scale"
+                      type="range"
+                      min={0.2}
+                      max={3}
+                      step={0.01}
+                      value={customBgScale}
+                      onChange={e => setCustomBgScale(Number(e.target.value))}
+                      className="w-full"
                     />
                   </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="logo-y" className='text-xs text-indigo-300'>Logo Y</Label>
-                    <Input
-                      id="logo-y"
-                      type="number"
-                      value={logoY ?? ''}
-                      onChange={(e) => setLogoY(e.target.value === '' ? undefined : Number(e.target.value))}
-                      placeholder="Auto (align with bar)"
-                      className="bg-slate-700/50 border-indigo-500/50 text-sm h-8"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="logo-y-offset" className='text-xs text-indigo-300'>Logo Y Offset</Label>
-                    <Input
-                      id="logo-y-offset"
-                      type="number"
-                      value={logoYOffset}
-                      onChange={(e) => setLogoYOffset(Number(e.target.value))}
-                      placeholder="Y offset"
-                      className="bg-slate-700/50 border-indigo-500/50 text-sm h-8"
-                    />
-                  </div>
-                </>
-              )}
+                )}
+              </div>
             </div>
           </div>
 
@@ -503,6 +506,8 @@ export default function HomePage() {
                 thumbnailType={thumbnailType}
                 streamDate={streamDate}
                 eventName={eventName}
+                customBgUrl={customBgUrl}
+                customBgScale={customBgScale}
               />
             </div>
             <Button onClick={handleDownload} className='w-full bg-gradient-to-r from-pink-400 via-purple-400 to-orange-400 text-indigo-700 hover:text-indigo-900 hover:from-pink-500 hover:via-purple-500 hover:to-orange-500 text-lg font-semibold shadow-md hover:shadow-lg transition-all duration-150 transform hover:scale-105'>Download Thumbnail</Button>
