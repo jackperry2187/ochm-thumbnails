@@ -71,12 +71,8 @@ export default function HomePage() {
   
   const [artUsageMap, setArtUsageMap] = useState<Record<string, Date | null>>({});
 
-  // State for custom logo
-  const [customLogoUrl, setCustomLogoUrl] = useState<string | null>(null);
-  const [showCustomLogoControls, setShowCustomLogoControls] = useState(false);
-  const [logoX, setLogoX] = useState<number | undefined>(undefined);
-  const [logoY, setLogoY] = useState<number | undefined>(undefined);
-  const [logoYOffset, setLogoYOffset] = useState<number>(18);
+  // State for logo selection
+  const [selectedLogo, setSelectedLogo] = useState<'default' | 'ocho'>('default');
 
   // State for custom background
   const [customBgUrl, setCustomBgUrl] = useState<string | null>(null);
@@ -342,24 +338,6 @@ export default function HomePage() {
     }
   };
 
-  const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setCustomLogoUrl(reader.result as string);
-        setShowCustomLogoControls(true);
-        setLogoX(undefined);
-        setLogoY(undefined);
-        setLogoYOffset(18);
-      };
-      reader.readAsDataURL(file);
-    } else {
-      setCustomLogoUrl(null);
-      setShowCustomLogoControls(false);
-    }
-  };
-
   const handleBgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -443,18 +421,6 @@ export default function HomePage() {
               {renderCardInput('bottomLeft', 'Bottom Left Card', 'Search Bottom Left Card...')}
               {renderSwapButton('left')}
 
-              {/* Custom Logo Upload Section */}
-              <div className="space-y-2 border-t border-indigo-400/30 pt-4 mt-4">
-                <Label htmlFor="custom-logo-upload" className='text-indigo-200'>Custom Logo</Label>
-                <Input
-                  id="custom-logo-upload"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleLogoUpload}
-                  className="w-full text-sm text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-pink-400/20 file:text-pink-300 hover:file:bg-pink-400/30 focus-visible:ring-1 focus-visible:ring-pink-500 focus-visible:ring-offset-0 focus-visible:ring-offset-slate-900"
-                />
-              </div>
-
               {/* Custom Background Upload Section */}
               <div className="space-y-2">
                 <Label htmlFor="custom-bg-upload" className='text-indigo-200'>Custom Background</Label>
@@ -481,6 +447,20 @@ export default function HomePage() {
                   </div>
                 )}
               </div>
+
+              {/* Logo Selection Section */}
+              <div className="space-y-2 border-t border-indigo-400/30 pt-4 mt-4">
+                <Label htmlFor="logo-selection" className='text-indigo-200'>Logo</Label>
+                <select
+                  id="logo-selection"
+                  value={selectedLogo}
+                  onChange={(e) => setSelectedLogo(e.target.value as 'default' | 'ocho')}
+                  className="w-full bg-slate-700/50 border border-indigo-500/50 text-slate-300 text-sm h-8 px-3 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                >
+                  <option value="default">Default</option>
+                  <option value="ocho">OCHO</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -499,10 +479,7 @@ export default function HomePage() {
                 bottomLeftArtUrl={cardStates.bottomLeft.artUrl}
                 topRightArtUrl={cardStates.topRight.artUrl}
                 bottomRightArtUrl={cardStates.bottomRight.artUrl}
-                customLogoUrl={customLogoUrl}
-                logoX={logoX}
-                logoY={logoY}
-                logoYOffset={logoYOffset}
+                selectedLogo={selectedLogo}
                 thumbnailType={thumbnailType}
                 streamDate={streamDate}
                 eventName={eventName}

@@ -15,16 +15,12 @@ interface ThumbnailCanvasProps {
   bottomRightArtUrl: string | null;
   canvasWidth?: number;
   canvasHeight?: number;
-  logoUrl?: string; // Default to the provided logo path
-  customLogoUrl?: string | null; // New: For custom uploaded logo
-  logoX?: number; // New: X position for custom logo
-  logoY?: number; // New: Y position for custom logo
-  logoYOffset?: number; // New: Y offset for custom logo
+  selectedLogo: 'default' | 'ocho';
   thumbnailType: ThumbnailType;
   streamDate?: string;
   eventName?: string;
-  customBgUrl?: string | null; // New: For custom background image
-  customBgScale?: number; // New: Scale for custom background image
+  customBgUrl?: string | null;
+  customBgScale?: number;
 }
 
 export interface ThumbnailCanvasHandle {
@@ -134,11 +130,7 @@ const ThumbnailCanvas = forwardRef<ThumbnailCanvasHandle, ThumbnailCanvasProps>(
     bottomRightArtUrl,
     canvasWidth = CANVAS_WIDTH_DEFAULT,
     canvasHeight = CANVAS_HEIGHT_DEFAULT,
-    logoUrl = '/logo_512.png', // Default to the provided logo path
-    customLogoUrl, // New prop
-    logoX: customLogoXFromProp, // New prop, renamed for clarity
-    logoY: customLogoYFromProp, // New prop, renamed for clarity
-    logoYOffset: customLogoYOffsetFromProp, // New prop, renamed for clarity
+    selectedLogo,
     thumbnailType,
     streamDate,
     eventName,
@@ -150,9 +142,9 @@ const ThumbnailCanvas = forwardRef<ThumbnailCanvasHandle, ThumbnailCanvasProps>(
   const stageRef = useRef<Konva.Stage>(null);
   
   const [defaultLogoDetails, setDefaultLogoDetails] = useState<LogoDetails | null>(null);
-  const [customLogoDetails, setCustomLogoDetails] = useState<LogoDetails | null>(null);
+  const [ochoLogoDetails, setOchoLogoDetails] = useState<LogoDetails | null>(null);
 
-  const loadLogo = (url: string, setLogoDetails: React.Dispatch<React.SetStateAction<LogoDetails | null>>, isCustom = false) => {
+  const loadLogo = (url: string, setLogoDetails: React.Dispatch<React.SetStateAction<LogoDetails | null>>, isOcho = false) => {
     const img = new window.Image();
     img.src = url;
     img.crossOrigin = 'Anonymous';
@@ -165,26 +157,26 @@ const ThumbnailCanvas = forwardRef<ThumbnailCanvasHandle, ThumbnailCanvasProps>(
       setLogoDetails({ image: img, calculatedWidth: scaledWidth });
     };
     img.onerror = () => {
-      console.error(`Failed to load ${isCustom ? 'custom' : 'default'} logo image:`, url);
+      console.error(`Failed to load ${isOcho ? 'OCHO' : 'default'} logo image:`, url);
       setLogoDetails(null);
     };
   };
 
   useEffect(() => {
-    if (logoUrl) {
-      loadLogo(logoUrl, setDefaultLogoDetails);
+    if (selectedLogo === 'default') {
+      loadLogo('/logo_512.png', setDefaultLogoDetails);
     } else {
       setDefaultLogoDetails(null);
     }
-  }, [logoUrl]);
+  }, [selectedLogo]);
 
   useEffect(() => {
-    if (customLogoUrl) {
-      loadLogo(customLogoUrl, setCustomLogoDetails, true);
+    if (selectedLogo === 'ocho') {
+      loadLogo('/ocho_logo_512.png', setOchoLogoDetails, true);
     } else {
-      setCustomLogoDetails(null);
+      setOchoLogoDetails(null);
     }
-  }, [customLogoUrl]);
+  }, [selectedLogo]);
 
   // Custom background logic
   const [bgImageObj, setBgImageObj] = useState<HTMLImageElement | null>(null);
@@ -208,8 +200,7 @@ const ThumbnailCanvas = forwardRef<ThumbnailCanvasHandle, ThumbnailCanvasProps>(
   const quadrantHeight = canvasHeight / 2;
 
   // Determine logo to display and its properties
-  const logoToDisplay = customLogoDetails ?? defaultLogoDetails;
-  const isCustomLogoDisplayed = !!customLogoDetails;
+  const logoToDisplay = ochoLogoDetails ?? defaultLogoDetails;
 
   // Default logo position calculations (used for text layout and default logo rendering)
   const defaultLogoLayoutWidth = defaultLogoDetails?.calculatedWidth ?? TARGET_LOGO_HEIGHT; // Fallback for layout if default not loaded
@@ -260,7 +251,7 @@ const ThumbnailCanvas = forwardRef<ThumbnailCanvasHandle, ThumbnailCanvasProps>(
     {
       text: (eventName ?? 'MODERN FNM').toUpperCase(),
       y: middleY - 120,
-      fontSize: getEventFontSize(eventName ?? 'MODERN FNM'),
+      fontSize: TEXT_FONT_SIZE_MAX * 0.9,
       strokeWidth: 1.8,
     },
     {
@@ -276,12 +267,12 @@ const ThumbnailCanvas = forwardRef<ThumbnailCanvasHandle, ThumbnailCanvasProps>(
   let finalLogoY: number;
 
   if (logoToDisplay) { // Check if there is any logo to display
-    if (isCustomLogoDisplayed) {
-      finalLogoX = customLogoXFromProp ?? (middleX - logoToDisplay.calculatedWidth / 2);
-      const baseY = customLogoYFromProp ?? defaultLogoCenteredY;
-      finalLogoY = baseY + (customLogoYOffsetFromProp ?? 0);
-    } else { // It's the default logo
-      finalLogoX = middleX - logoToDisplay.calculatedWidth / 2;
+    finalLogoX = middleX - logoToDisplay.calculatedWidth / 2;
+    if (selectedLogo === 'ocho') {
+      // OCHO logo renders 20 pixels higher than default
+      finalLogoY = defaultLogoCenteredY - 21;
+    } else {
+      // Default logo position
       finalLogoY = defaultLogoCenteredY;
     }
   } else {
@@ -458,22 +449,6 @@ const ThumbnailCanvas = forwardRef<ThumbnailCanvasHandle, ThumbnailCanvasProps>(
               />
             ))}
           </>
-        )}
-      </Layer>
-
-      {/* Logo and Stream Texts Layer */}
-      <Layer>
-        {/* Actual Logo Image: Conditional rendering based on custom or default logo */}
-        {logoToDisplay && (
-          <KonvaImage
-            image={logoToDisplay.image}
-            x={finalLogoX}
-            y={finalLogoY}
-            width={logoToDisplay.calculatedWidth}
-            height={TARGET_LOGO_HEIGHT}
-            draggable={false}
-            listening={false}
-          />
         )}
       </Layer>
     </Stage>
