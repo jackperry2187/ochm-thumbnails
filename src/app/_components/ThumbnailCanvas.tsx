@@ -19,6 +19,7 @@ interface ThumbnailCanvasProps {
   thumbnailType: ThumbnailType;
   streamDate?: string;
   eventName?: string;
+  bottomText?: string;
   customBgUrl?: string | null;
   customBgScale?: number;
 }
@@ -134,6 +135,7 @@ const ThumbnailCanvas = forwardRef<ThumbnailCanvasHandle, ThumbnailCanvasProps>(
     thumbnailType,
     streamDate,
     eventName,
+    bottomText,
     customBgUrl, // New prop for custom background URL
     customBgScale, // New prop for custom background scale
   },
@@ -255,7 +257,7 @@ const ThumbnailCanvas = forwardRef<ThumbnailCanvasHandle, ThumbnailCanvasProps>(
       strokeWidth: 1.8,
     },
     {
-      text: "LIVE!",
+      text: (bottomText ?? 'LIVE!').toUpperCase(),
       y: middleY + 190,
       fontSize: TEXT_FONT_SIZE_MAX * 1.5,
       strokeWidth: 2.5,

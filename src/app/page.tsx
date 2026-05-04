@@ -56,6 +56,7 @@ export default function HomePage() {
   const [thumbnailType, setThumbnailType] = useState<ThumbnailType>("Video");
   const [streamDate, setStreamDate] = useState('');
   const [eventName, setEventName] = useState('MODERN FNM');
+  const [bottomText, setBottomText] = useState('LIVE!');
 
   const [cardStates, setCardStates] = useState<Record<CardSlot, CardState>>({
     topLeft: { ...initialCardState },
@@ -483,6 +484,7 @@ export default function HomePage() {
                 thumbnailType={thumbnailType}
                 streamDate={streamDate}
                 eventName={eventName}
+                bottomText={bottomText}
                 customBgUrl={customBgUrl}
                 customBgScale={customBgScale}
               />
@@ -543,6 +545,15 @@ export default function HomePage() {
                     value={eventName}
                     onChange={(e) => setEventName(e.target.value)}
                     placeholder="MODERN FNM"
+                    className="bg-slate-700/50 border-indigo-500/50 text-sm h-8"
+                  />
+                  <Label htmlFor="bottom-text" className='text-indigo-200 mt-2'>Bottom Text</Label>
+                  <Input
+                    id="bottom-text"
+                    type="text"
+                    value={bottomText}
+                    onChange={(e) => setBottomText(e.target.value)}
+                    placeholder="LIVE!"
                     className="bg-slate-700/50 border-indigo-500/50 text-sm h-8"
                   />
                 </div>
